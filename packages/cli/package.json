@@ -1,0 +1,14 @@
+{
+  "name": "@cdwallet/cli",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "bin": { "cdwallet": "./src/index.ts" },
+  "scripts": {
+    "typecheck": "tsc -p .",
+    "test": "vitest run --passWithNoTests"
+  },
+  "dependencies": {
+    "@cdwallet/shared": "workspace:*"
+  }
+}

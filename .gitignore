@@ -1,0 +1,29 @@
+node_modules/
+dist/
+build/
+coverage/
+*.tsbuildinfo
+
+# CDK
+cdk.out/
+.cdk.staging/
+
+# Local config and secrets (the CLI stores its admin token outside the repo, but just in case)
+.env
+.env.*
+*.pem
+cdwallet.config.json
+
+# Expo / Android
+.expo/
+apps/android/android/
+apps/android/ios/
+*.apk
+*.aab
+*.keystore
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/*
+!.vscode/extensions.json

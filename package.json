@@ -1,0 +1,23 @@
+{
+  "name": "cd-wallet",
+  "private": true,
+  "version": "0.0.0",
+  "description": "Self-hosted music archive: deploy to your own AWS account, import your MP3s, stream on Android.",
+  "license": "MIT",
+  "packageManager": "pnpm@12.18.0",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "cdwallet": "pnpm --filter @cdwallet/cli exec tsx src/index.ts",
+    "typecheck": "pnpm -r --if-present typecheck",
+    "test": "pnpm -r --if-present test",
+    "synth": "pnpm --filter @cdwallet/infra synth"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.6",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2",
+    "vitest": "^5.1.0"
+  }
+}
