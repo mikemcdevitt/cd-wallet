@@ -1,0 +1,20 @@
+{
+  "name": "@cdwallet/infra",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc -p .",
+    "synth": "cdk synth --quiet",
+    "test": "vitest run --passWithNoTests"
+  },
+  "dependencies": {
+    "@cdwallet/api": "workspace:*",
+    "aws-cdk-lib": "^2.275.0",
+    "constructs": "^10.8.1"
+  },
+  "devDependencies": {
+    "aws-cdk": "^2.1148.0",
+    "esbuild": "^0.28.2"
+  }
+}
