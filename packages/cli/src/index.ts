@@ -1,3 +1,6 @@
+import { describeError } from "./errors";
+import { runDeploy } from "./deploy";
+
 const COMMANDS: Record<string, string> = {
   deploy: "Create or update the CD Wallet stack in your AWS account",
   import: "Upload MP3s from a folder (safe to re-run; --dry-run to preview)",
@@ -14,15 +17,25 @@ function usage(): void {
   }
 }
 
-const [command] = process.argv.slice(2);
+async function main(argv: string[]): Promise<void> {
+  const [command, ...rest] = argv;
 
-if (!command || command === "--help" || command === "-h") {
-  usage();
-} else if (command in COMMANDS) {
-  console.error(`cdwallet ${command}: not implemented yet.`);
-  process.exitCode = 1;
-} else {
-  console.error(`Unknown command: ${command}\n`);
-  usage();
-  process.exitCode = 1;
+  if (!command || command === "--help" || command === "-h") {
+    usage();
+  } else if (command === "deploy") {
+    await runDeploy(rest);
+  } else if (command in COMMANDS) {
+    console.error(`cdwallet ${command}: not implemented yet.`);
+    process.exitCode = 1;
+  } else {
+    console.error(`Unknown command: ${command}\n`);
+    usage();
+    process.exitCode = 1;
+  }
 }
+
+main(process.argv.slice(2)).catch((err: unknown) => {
+  const message = describeError(err);
+  console.error(message === undefined ? err : `Error: ${message}`);
+  process.exitCode = 1;
+});
