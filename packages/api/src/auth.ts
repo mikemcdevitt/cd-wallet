@@ -1,10 +1,8 @@
 import { createHash, timingSafeEqual } from "node:crypto";
+import { ADMIN_TOKEN_PREFIX as ADMIN_PREFIX, DEVICE_TOKEN_PREFIX as DEVICE_PREFIX } from "@cdwallet/shared";
 import { HttpError } from "./errors";
 import type { Store } from "./store";
 
-/** Admin tokens look like `cda_<random>`; device tokens like `cdd_<deviceId>.<random>`. */
-export const ADMIN_PREFIX = "cda_";
-export const DEVICE_PREFIX = "cdd_";
 
 export type Role = "admin" | "device";
 export interface Principal {

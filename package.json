@@ -9,7 +9,7 @@
     "node": ">=22"
   },
   "scripts": {
-    "cdwallet": "pnpm --filter @cdwallet/cli exec tsx src/index.ts",
+    "cdwallet": "pnpm --silent --dir packages/cli exec tsx src/index.ts",
     "typecheck": "pnpm -r --if-present typecheck",
     "test": "pnpm -r --if-present test",
     "synth": "pnpm --filter @cdwallet/infra synth"

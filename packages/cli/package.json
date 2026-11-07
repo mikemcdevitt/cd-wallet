@@ -3,12 +3,18 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "bin": { "cdwallet": "./src/index.ts" },
+  "bin": {
+    "cdwallet": "./src/index.ts"
+  },
   "scripts": {
     "typecheck": "tsc -p .",
     "test": "vitest run --passWithNoTests"
   },
   "dependencies": {
+    "@aws-sdk/client-cloudformation": "^3.1163.0",
+    "@aws-sdk/client-dynamodb": "^3.1163.0",
+    "@aws-sdk/client-sts": "^3.1163.0",
+    "@aws-sdk/lib-dynamodb": "^3.1163.0",
     "@cdwallet/shared": "workspace:*"
   }
 }
