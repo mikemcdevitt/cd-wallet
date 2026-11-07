@@ -30,7 +30,17 @@ You'll need an AWS account, Node.js, pnpm, and local AWS credentials. The Androi
 
 ## What it costs
 
-You pay AWS directly. Storage is about $0.023 per GB per month in S3 Standard (us-east-1), so 100 GB of music is roughly $2.30 a month. Streaming is covered by AWS's 100 GB per month of free data transfer for most personal listening. Check current AWS pricing for your region.
+You pay AWS directly, and the cost per GB falls over time: your music is stored with S3 Intelligent-Tiering, which automatically moves tracks you haven't played in a while to cheaper storage. There are no retrieval fees, and every track stays instantly playable.
+
+For 100 GB of music (about 12,500 tracks) in us-east-1 that you leave alone after uploading:
+
+| Period | Average cost per month |
+| --- | --- |
+| First year | about $0.75 |
+| From year two | about $0.45 |
+| Five-year average | about $0.50 |
+
+For comparison, plain S3 Standard costs $2.30 a month for the same 100 GB, which is $138 over five years. A track you play moves back to the more expensive tier for a while, so a library you listen to heavily costs more, up to $2.30 per 100 GB per month in the worst case. Streaming is covered by AWS's 100 GB per month of free data transfer for most personal listening, and the API, database and Lambda add pennies. Prices change, so check current AWS pricing for your region.
 
 ## Version 1 scope
 

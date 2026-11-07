@@ -100,4 +100,6 @@ export const API_LIMITS = {
   checkTracksMaxHashes: 500,
   streamUrlsMaxTracks: 20,
   pairingCodeTtlSeconds: 300,
+  /** Largest single MP3 the API will sign an upload for. */
+  maxAudioBytes: 250 * 1024 * 1024,
 } as const;
