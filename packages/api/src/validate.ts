@@ -9,8 +9,7 @@ import { HttpError } from "./errors";
 
 const HASH = /^[0-9a-f]{64}$/;
 const META_SOURCES: readonly MetaSource[] = ["tags", "folder"];
-/** Largest single MP3 we will sign an upload for. */
-export const MAX_AUDIO_BYTES = 250 * 1024 * 1024;
+export const MAX_AUDIO_BYTES = API_LIMITS.maxAudioBytes;
 
 const bad = (message: string): never => {
   throw new HttpError(400, "invalid_request", message);

@@ -1,5 +1,6 @@
 import { describeError } from "./errors";
 import { runDeploy } from "./deploy";
+import { runImport } from "./import/run";
 
 const COMMANDS: Record<string, string> = {
   deploy: "Create or update the CD Wallet stack in your AWS account",
@@ -24,6 +25,9 @@ async function main(argv: string[]): Promise<void> {
     usage();
   } else if (command === "deploy") {
     await runDeploy(rest);
+  } else if (command === "import") {
+    const result = await runImport(rest);
+    if (result.failures.length > 0) process.exitCode = 1;
   } else if (command in COMMANDS) {
     console.error(`cdwallet ${command}: not implemented yet.`);
     process.exitCode = 1;
