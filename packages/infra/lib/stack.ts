@@ -50,20 +50,50 @@ export class CdWalletStack extends cdk.Stack {
       pointInTimeRecoverySpecification: { pointInTimeRecoveryEnabled: true },
       removalPolicy: cdk.RemovalPolicy.RETAIN,
     });
-
-    const health = new nodejs.NodejsFunction(this, "Health", {
-      entry: path.join(here, "../../api/src/health.ts"),
-      handler: "handler",
-      runtime: lambda.Runtime.NODEJS_22_X,
-      memorySize: 128,
-      timeout: cdk.Duration.seconds(5),
+    // Lets the phone ask "what changed since version N" without scanning the table.
+    table.addGlobalSecondaryIndex({
+      indexName: "byVersion",
+      partitionKey: { name: "gsi1pk", type: dynamodb.AttributeType.STRING },
+      sortKey: { name: "gsi1sk", type: dynamodb.AttributeType.NUMBER },
+      projectionType: dynamodb.ProjectionType.ALL,
     });
 
-    const api = new apigw.HttpApi(this, "Api");
+    const apiFn = new nodejs.NodejsFunction(this, "Api", {
+      entry: path.join(here, "../../api/src/lambda.ts"),
+      handler: "handler",
+      runtime: lambda.Runtime.NODEJS_22_X,
+      memorySize: 256,
+      timeout: cdk.Duration.seconds(15),
+      environment: {
+        TABLE_NAME: table.tableName,
+        BUCKET_NAME: bucket.bucketName,
+      },
+    });
+
+    // Least privilege: only the DynamoDB and S3 calls the API actually makes.
+    apiFn.addToRolePolicy(
+      new iam.PolicyStatement({
+        actions: ["dynamodb:GetItem", "dynamodb:BatchGetItem", "dynamodb:PutItem", "dynamodb:UpdateItem", "dynamodb:Query"],
+        resources: [table.tableArn, `${table.tableArn}/index/byVersion`],
+      }),
+    );
+    // PutObject/GetObject are used to sign upload and download links. ListBucket makes a
+    // missing key come back as "not found" instead of "access denied" when checking uploads.
+    apiFn.addToRolePolicy(
+      new iam.PolicyStatement({
+        actions: ["s3:PutObject", "s3:GetObject"],
+        resources: [bucket.arnForObjects("*")],
+      }),
+    );
+    apiFn.addToRolePolicy(
+      new iam.PolicyStatement({ actions: ["s3:ListBucket"], resources: [bucket.bucketArn] }),
+    );
+
+    const api = new apigw.HttpApi(this, "HttpApi");
     api.addRoutes({
-      path: "/health",
-      methods: [apigw.HttpMethod.GET],
-      integration: new integrations.HttpLambdaIntegration("HealthIntegration", health),
+      path: "/{proxy+}",
+      methods: [apigw.HttpMethod.ANY],
+      integration: new integrations.HttpLambdaIntegration("ApiIntegration", apiFn),
     });
 
     if (props.ownerEmail) {

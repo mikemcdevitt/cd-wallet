@@ -42,11 +42,20 @@ export interface AddTrackResponse {
   libraryVersion: number;
 }
 
-/** GET /library?since=N  (device or admin) */
+/**
+ * GET /library?since=N  (device or admin)
+ *
+ * Returns tracks changed after version N, in pages. While `hasMore` is true, call again with
+ * `since` set to the returned `version`. When it is false, store `version` and use it next
+ * time. Applying a track or deletion twice is harmless, and the server may resend a few
+ * recent changes, so clients should upsert by track id.
+ */
 export interface LibraryResponse {
   version: number;
   tracks: Track[];
+  /** Ids of tracks removed since N. */
   deletedIds: string[];
+  hasMore: boolean;
 }
 
 /** POST /stream-urls  (device or admin) */
