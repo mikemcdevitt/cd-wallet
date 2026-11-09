@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Pressable, Text, View } from "react-native";
 import { formatDuration } from "../src/core/library";
 import { usePlayer } from "../src/player/player";
@@ -14,6 +15,7 @@ function Button({ label, onPress, big, a11y }: { label: string; onPress: () => v
 
 export default function PlayerScreen() {
   const p = usePlayer();
+  const [barWidth, setBarWidth] = useState(0);
   if (!p.current) {
     return (
       <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
@@ -41,14 +43,16 @@ export default function PlayerScreen() {
         <Pressable
           accessibilityRole="adjustable"
           accessibilityLabel="Seek"
+          onLayout={(e) => setBarWidth(e.nativeEvent.layout.width)}
           onPress={(e) => {
             // Tap anywhere on the bar to jump there.
-            const width = (e.currentTarget as unknown as { offsetWidth?: number }).offsetWidth;
-            if (width && p.durationSec) p.seekTo((e.nativeEvent.locationX / width) * p.durationSec);
+            if (barWidth > 0 && p.durationSec > 0) {
+              p.seekTo(Math.min(1, Math.max(0, e.nativeEvent.locationX / barWidth)) * p.durationSec);
+            }
           }}
           style={{ height: 24, justifyContent: "center" }}
         >
-          <View style={{ height: 4, borderRadius: 2, backgroundColor: colors.border }}>
+          <View pointerEvents="none" style={{ height: 4, borderRadius: 2, backgroundColor: colors.border }}>
             <View style={{ height: 4, borderRadius: 2, width: `${progress * 100}%`, backgroundColor: colors.accent }} />
           </View>
         </Pressable>

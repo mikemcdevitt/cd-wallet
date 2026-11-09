@@ -63,10 +63,11 @@ Then in the app:
 
 The server forgets everything when you stop it. After a restart the app sees that the phone is no longer paired and asks you to pair again. Don't share a build made with `CDWALLET_ALLOW_HTTP=1`.
 
-## Not verified on a real phone yet
+## What's been checked
 
-These were written against the Expo docs and type definitions but have not run on a device or against a deployed stack:
+Tried on a real Android phone against `pnpm dev:api`: pairing, library sync, tabs and search, playback, background playback, lock-screen play/pause and next/previous, seeking, and cover art.
 
-- Notification and lock-screen controls, and whether the next/previous buttons there move the queue (the `expo-audio` docs don't say).
-- Cover art: the API answers `/art/{hash}` with a redirect to S3, and the download must not forward the token to S3.
+Still unverified, because they need a real AWS deployment:
+
+- Cover art through the real S3 redirect. `/art/{hash}` answers with a redirect to S3, and the download must not forward the device token there, or S3 rejects it.
 - Streaming and seeking against real signed S3 URLs.
