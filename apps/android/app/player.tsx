@@ -1,8 +1,9 @@
 import { useState } from "react";
-import { Pressable, Text, View } from "react-native";
+import { Pressable, ScrollView, Text, View } from "react-native";
 import { formatDuration } from "../src/core/library";
 import { usePlayer } from "../src/player/player";
 import { Cover } from "../src/ui/Cover";
+import { TrackRow } from "../src/ui/rows";
 import { colors, spacing } from "../src/ui/theme";
 
 function Button({ label, onPress, big, a11y }: { label: string; onPress: () => void; big?: boolean; a11y: string }) {
@@ -23,9 +24,10 @@ export default function PlayerScreen() {
       </View>
     );
   }
+  const upNext = p.queue.slice(p.index + 1, p.index + 1 + 30);
   const progress = p.durationSec > 0 ? Math.min(1, p.positionSec / p.durationSec) : 0;
   return (
-    <View style={{ flex: 1, padding: spacing.xl, alignItems: "center", gap: spacing.lg }}>
+    <ScrollView contentContainerStyle={{ padding: spacing.xl, alignItems: "center", gap: spacing.lg }}>
       <Cover artHash={p.current.artHash} size={280} label={p.current.album} />
       <View style={{ alignItems: "center", gap: spacing.xs }}>
         <Text numberOfLines={2} style={{ color: colors.text, fontSize: 22, textAlign: "center" }}>
@@ -68,6 +70,15 @@ export default function PlayerScreen() {
         <Button label="⏭" onPress={p.next} a11y="Next track" />
       </View>
       {p.error ? <Text style={{ color: colors.danger, textAlign: "center" }}>{p.error}</Text> : null}
-    </View>
+
+      {upNext.length > 0 ? (
+        <View style={{ alignSelf: "stretch", marginHorizontal: -spacing.xl }}>
+          <Text style={{ color: colors.text, fontSize: 16, paddingHorizontal: spacing.xl, paddingBottom: spacing.sm }}>Up next</Text>
+          {upNext.map((t, i) => (
+            <TrackRow key={`${t.id}-${i}`} track={t} onPress={() => void p.playQueue(p.queue, p.index + 1 + i)} />
+          ))}
+        </View>
+      ) : null}
+    </ScrollView>
   );
 }

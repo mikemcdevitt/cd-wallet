@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from "react";
 import { FlatList, Pressable, RefreshControl, Text, TextInput, View } from "react-native";
 import type { AlbumSummary, ArtistSummary, LibraryTrack } from "../src/core/library";
 import { useApp } from "../src/data/app-context";
+import { shuffled } from "../src/core/queue";
 import { usePlayer } from "../src/player/player";
 import { AlbumRow, ArtistRow, EmptyNote, TrackRow } from "../src/ui/rows";
 import { colors, spacing } from "../src/ui/theme";
@@ -53,6 +54,14 @@ export default function Library() {
   );
 
   const refreshing = sync.status === "syncing";
+  const countLabel =
+    tab === "songs" ? `${tracks.length} ${tracks.length === 1 ? "song" : "songs"}` : tab === "albums" ? `${albums.length} ${albums.length === 1 ? "album" : "albums"}` : `${artists.length} ${artists.length === 1 ? "artist" : "artists"}`;
+
+  const shuffleAll = useCallback(async () => {
+    if (!session) return;
+    const all = await session.library.tracks({ query: query.trim() });
+    if (all.length) await player.playQueue(shuffled(all), 0);
+  }, [session, query, player]);
   const empty =
     total === 0 ? (refreshing ? "Loading your library…" : "Your library is empty. Import some music with the cdwallet command on your computer.") : "Nothing matches that search.";
 
@@ -89,6 +98,17 @@ export default function Library() {
               <Text style={{ color: tab === t.id ? colors.bg : colors.text }}>{t.label}</Text>
             </Pressable>
           ))}
+        </View>
+        <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+          <Text style={{ color: colors.textDim, fontSize: 12 }}>
+            {total === undefined ? "" : countLabel}
+            {refreshing ? " · updating…" : ""}
+          </Text>
+          {total ? (
+            <Pressable onPress={() => void shuffleAll()} hitSlop={8} accessibilityRole="button" accessibilityLabel="Shuffle songs">
+              <Text style={{ color: colors.accent, fontSize: 14 }}>⤮ Shuffle</Text>
+            </Pressable>
+          ) : null}
         </View>
         {sync.status === "error" ? (
           <Text style={{ color: colors.danger }}>Couldn't update your library: {sync.message}. Pull down to try again.</Text>

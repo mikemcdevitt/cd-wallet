@@ -25,3 +25,17 @@ export function tracksToLoadNext(opts: { queueLength: number; windowStart: numbe
   if (loadedAhead > LOOKAHEAD) return 0;
   return Math.min(QUEUE_WINDOW, remainingInQueue);
 }
+
+/**
+ * Returns a shuffled copy (Fisher-Yates). If `first` is an index, that item is moved to the front,
+ * so "shuffle from this song" still starts on the song that was tapped.
+ */
+export function shuffled<T>(items: readonly T[], random: () => number = Math.random, first?: number): T[] {
+  const rest = items.filter((_, i) => i !== first);
+  for (let i = rest.length - 1; i > 0; i--) {
+    const j = Math.floor(random() * (i + 1));
+    [rest[i], rest[j]] = [rest[j]!, rest[i]!];
+  }
+  const head = first !== undefined && first >= 0 && first < items.length ? [items[first]!] : [];
+  return [...head, ...rest];
+}

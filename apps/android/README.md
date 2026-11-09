@@ -8,7 +8,7 @@ It never talks to anything but your own deployment. The phone holds a read-only 
 
 - **Pair** by scanning the QR code from `pnpm cdwallet pair`, opening the `cdwallet://pair?...` link, or typing the API address and code.
 - **Library** with Songs, Albums and Artists views and search across title, artist and album. It syncs on launch and on pull-to-refresh, fetching only what changed.
-- **Player** with play/pause, previous/next, seek, background playback, and notification/lock-screen controls. Long queues are signed 20 tracks at a time and extended as you listen.
+- **Player** with play/pause, previous/next, seek, shuffle, an Up next list, background playback, and notification/lock-screen controls. Long queues are signed 20 tracks at a time and extended as you listen.
 - **Unpair** from Settings, which also wipes the local copy.
 
 ## Layout

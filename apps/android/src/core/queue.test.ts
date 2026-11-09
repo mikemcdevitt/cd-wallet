@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { initialWindow, tracksToLoadNext } from "./queue";
+import { initialWindow, shuffled, tracksToLoadNext } from "./queue";
 
 describe("queue window", () => {
   it("starts at the chosen track and holds at most 20", () => {
@@ -18,5 +18,34 @@ describe("queue window", () => {
   it("loads only what's left and stops at the end", () => {
     expect(tracksToLoadNext({ queueLength: 25, windowStart: 0, loadedCount: 20, playingOffset: 18 })).toBe(5);
     expect(tracksToLoadNext({ queueLength: 20, windowStart: 0, loadedCount: 20, playingOffset: 19 })).toBe(0);
+  });
+});
+
+describe("shuffled", () => {
+  const items = Array.from({ length: 20 }, (_, i) => i);
+  const seeded = () => {
+    let x = 42;
+    return () => ((x = (x * 1664525 + 1013904223) % 4294967296) / 4294967296);
+  };
+
+  it("keeps every item exactly once and leaves the original alone", () => {
+    const copy = [...items];
+    const out = shuffled(items, seeded());
+    expect([...out].sort((a, b) => a - b)).toEqual(items);
+    expect(items).toEqual(copy);
+    expect(out).not.toEqual(items);
+  });
+
+  it("starts with the chosen item when asked", () => {
+    const out = shuffled(items, seeded(), 7);
+    expect(out[0]).toBe(7);
+    expect([...out].sort((a, b) => a - b)).toEqual(items);
+  });
+
+  it("is repeatable for the same random source and handles tiny lists", () => {
+    expect(shuffled(items, seeded())).toEqual(shuffled(items, seeded()));
+    expect(shuffled([], seeded())).toEqual([]);
+    expect(shuffled([1], seeded())).toEqual([1]);
+    expect(shuffled([1, 2], seeded(), 5)).toHaveLength(2);
   });
 });
