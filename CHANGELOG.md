@@ -7,7 +7,7 @@ All notable changes to CD Wallet are listed here. The format follows [Keep a Cha
 ### Added
 
 - `pnpm dev:api`: a throwaway local server with sample tracks (real API code, fake S3 with range requests) for trying the app without AWS. `CDWALLET_ALLOW_HTTP=1` builds allow its plain-http address.
-- **Android app** (Expo SDK 58): pair by QR code, link or typed code; Songs, Albums and Artists views with search; local SQLite library index synced incrementally; streaming playback with background play and notification/lock-screen controls; cover art cache; unpair from Settings. Not yet tested on a phone.
+- **Android app** (Expo SDK 58): pair by QR code, link or typed code; Songs, Albums and Artists views with search; local SQLite library index synced incrementally; streaming playback with background play and notification/lock-screen controls; cover art cache; unpair from Settings. Tested on a phone against the local dev server, not yet against real AWS.
 - CI step that checks the Android JavaScript bundle builds.
 - `SECURITY.md`, `PRIVACY.md` and `THIRD_PARTY_NOTICES.md`; "Your responsibilities" and "Privacy and security" sections in the README.
 - Stream URLs, cover art, and device pairing in the API: `POST /stream-urls`, `GET /art/{hash}`, `POST /pairing`, `POST /pairing/claim`, `GET /devices`, `DELETE /devices/{id}`.
@@ -18,6 +18,7 @@ All notable changes to CD Wallet are listed here. The format follows [Keep a Cha
 
 ### Changed
 
+- Tapping the progress bar in the player now seeks on Android.
 - The app no longer requests microphone permission (the camera library asked for it by default).
 - README cost section now shows annual averages instead of first-month cost.
 
