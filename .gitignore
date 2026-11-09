@@ -27,3 +27,6 @@ apps/android/ios/
 .idea/
 .vscode/*
 !.vscode/extensions.json
+
+# Local test files (not for the repo)
+.dev/

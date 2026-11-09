@@ -36,6 +36,8 @@ People will deploy this into AWS accounts they pay for. Changes must keep these 
 - IAM permissions stay least-privilege.
 - No public endpoints beyond the token-protected API.
 - Nothing should make idle costs meaningfully higher.
+- No analytics, telemetry or crash reporting that sends data anywhere other than the owner's own deployment.
+- No features that help someone get music they don't already own.
 
 Call out any change to infrastructure, permissions or cost in your pull request description.
 
