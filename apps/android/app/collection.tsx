@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { FlatList, Pressable, Text, View } from "react-native";
 import type { AlbumSummary, LibraryTrack } from "../src/core/library";
 import { useApp } from "../src/data/app-context";
+import { shuffled } from "../src/core/queue";
 import { usePlayer } from "../src/player/player";
 import { AlbumRow, EmptyNote, TrackRow } from "../src/ui/rows";
 import { colors, spacing } from "../src/ui/theme";
@@ -45,13 +46,22 @@ export default function Collection() {
         keyExtractor={(t) => t.id}
         ListHeaderComponent={
           tracks.length ? (
-            <Pressable
-              onPress={() => void player.playQueue(tracks, 0)}
-              accessibilityRole="button"
-              style={{ margin: spacing.lg, padding: spacing.md, borderRadius: 8, backgroundColor: colors.accent, alignItems: "center" }}
-            >
-              <Text style={{ color: colors.bg, fontSize: 16, fontWeight: "600" }}>Play album</Text>
-            </Pressable>
+            <View style={{ flexDirection: "row", gap: spacing.md, margin: spacing.lg }}>
+              <Pressable
+                onPress={() => void player.playQueue(tracks, 0)}
+                accessibilityRole="button"
+                style={{ flex: 1, padding: spacing.md, borderRadius: 8, backgroundColor: colors.accent, alignItems: "center" }}
+              >
+                <Text style={{ color: colors.bg, fontSize: 16, fontWeight: "600" }}>Play album</Text>
+              </Pressable>
+              <Pressable
+                onPress={() => void player.playQueue(shuffled(tracks), 0)}
+                accessibilityRole="button"
+                style={{ flex: 1, padding: spacing.md, borderRadius: 8, backgroundColor: colors.surfaceHigh, alignItems: "center" }}
+              >
+                <Text style={{ color: colors.text, fontSize: 16, fontWeight: "600" }}>Shuffle</Text>
+              </Pressable>
+            </View>
           ) : undefined
         }
         renderItem={({ item, index }) => (

@@ -6,6 +6,7 @@ All notable changes to CD Wallet are listed here. The format follows [Keep a Cha
 
 ### Added
 
+- App: Shuffle (all songs or search results from the library, or one album), an "Up next" list in the player, and song/album/artist counts with a sync indicator in the library.
 - Open-source licenses screen in the app (Settings), generated from the dependency tree, with a CI check that keeps it current.
 - `pnpm dev:api`: a throwaway local server with sample tracks (real API code, fake S3 with range requests) for trying the app without AWS. `CDWALLET_ALLOW_HTTP=1` builds allow its plain-http address.
 - **Android app** (Expo SDK 58): pair by QR code, link or typed code; Songs, Albums and Artists views with search; local SQLite library index synced incrementally; streaming playback with background play and notification/lock-screen controls; cover art cache; unpair from Settings. Tested on a phone against the local dev server, not yet against real AWS.
