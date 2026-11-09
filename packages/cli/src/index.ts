@@ -1,5 +1,8 @@
 import { describeError } from "./errors";
 import { runDeploy } from "./deploy";
+import { runDevices } from "./devices";
+import { runPair } from "./pair";
+import { runResetToken } from "./reset-token";
 import { runImport } from "./import/run";
 
 const COMMANDS: Record<string, string> = {
@@ -25,6 +28,12 @@ async function main(argv: string[]): Promise<void> {
     usage();
   } else if (command === "deploy") {
     await runDeploy(rest);
+  } else if (command === "pair") {
+    await runPair(rest);
+  } else if (command === "devices") {
+    await runDevices(rest);
+  } else if (command === "reset-token") {
+    await runResetToken(rest);
   } else if (command === "import") {
     const result = await runImport(rest);
     if (result.failures.length > 0) process.exitCode = 1;

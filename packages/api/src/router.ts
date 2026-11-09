@@ -1,16 +1,34 @@
-import type {
-  AddTrackResponse,
-  ApiErrorBody,
-  CheckTracksResponse,
-  CreateUploadResponse,
-  LibraryResponse,
+import {
+  API_LIMITS,
+  formatPairingCode,
+  isPairingCode,
+  normalizePairingCode,
+  type AddTrackResponse,
+  type ApiErrorBody,
+  type CheckTracksResponse,
+  type ClaimPairingResponse,
+  type CreatePairingResponse,
+  type CreateUploadResponse,
+  type LibraryResponse,
+  type ListDevicesResponse,
+  type StreamUrlsResponse,
 } from "@cdwallet/shared";
-import { authenticate, requireRole } from "./auth";
+import { authenticate, requireRole, sha256Hex, type Principal } from "./auth";
 import { HttpError } from "./errors";
 import { artKey, audioKey } from "./keys";
+import { newDeviceCredentials, newPairingCode, type RandomBytes } from "./pairing";
 import type { Storage } from "./storage";
 import { toTrack, type Store } from "./store";
-import { parseAddTrack, parseCheckTracks, parseCreateUpload, parseSince } from "./validate";
+import {
+  hashField,
+  parseAddTrack,
+  parseCheckTracks,
+  parseClaimPairing,
+  parseCreatePairing,
+  parseCreateUpload,
+  parseSince,
+  parseStreamUrls,
+} from "./validate";
 
 export interface HttpRequest {
   method: string;
@@ -31,6 +49,8 @@ export interface Deps {
   store: Store;
   storage: Storage;
   now: () => Date;
+  /** Source of randomness for codes and tokens; tests replace it. */
+  random?: RandomBytes;
   /** Tracks per /library page. */
   libraryPageSize?: number;
   /**
@@ -44,6 +64,7 @@ export interface Deps {
 export const UPLOAD_URL_TTL_SECONDS = 15 * 60;
 const DEFAULT_PAGE_SIZE = 500;
 const DEFAULT_OVERLAP = 25;
+const DEVICE_ID = /^[0-9a-f]{16}$/;
 
 function json(statusCode: number, value: unknown): HttpResponse {
   return {
@@ -67,6 +88,8 @@ function parseJson(body: string | undefined): unknown {
   }
 }
 
+const inSeconds = (deps: Deps, seconds: number): string => new Date(deps.now().getTime() + seconds * 1000).toISOString();
+
 export async function route(req: HttpRequest, deps: Deps): Promise<HttpResponse> {
   try {
     return await dispatch(req, deps);
@@ -78,28 +101,55 @@ export async function route(req: HttpRequest, deps: Deps): Promise<HttpResponse>
 }
 
 async function dispatch(req: HttpRequest, deps: Deps): Promise<HttpResponse> {
-  const key = `${req.method.toUpperCase()} ${req.path.replace(/\/+$/, "") || "/"}`;
+  const method = req.method.toUpperCase();
+  const path = req.path.replace(/\/+$/, "") || "/";
+  const key = `${method} ${path}`;
 
   if (key === "GET /health") return json(200, { ok: true, service: "cd-wallet" });
 
-  const principal = await authenticate(req.headers.authorization, deps.store);
+  // Pairing is how a phone gets its first token, so this is the one route that needs none.
+  if (key === "POST /pairing/claim") return claimPairing(req, deps);
+
+  const principal = await authenticate(req.headers.authorization, deps.store, deps.now());
+  const require = (...roles: Array<Principal["role"]>) => requireRole(principal, roles);
 
   switch (key) {
     case "POST /tracks/check":
-      requireRole(principal, ["admin"]);
+      require("admin");
       return checkTracks(req, deps);
     case "POST /uploads":
-      requireRole(principal, ["admin"]);
+      require("admin");
       return createUpload(req, deps);
     case "POST /tracks":
-      requireRole(principal, ["admin"]);
+      require("admin");
       return addTrack(req, deps);
     case "GET /library":
-      requireRole(principal, ["admin", "device"]);
+      require("admin", "device");
       return library(req, deps);
-    default:
-      throw new HttpError(404, "not_found", "No such route");
+    case "POST /stream-urls":
+      require("admin", "device");
+      return streamUrls(req, deps);
+    case "POST /pairing":
+      require("admin");
+      return createPairing(req, deps);
+    case "GET /devices":
+      require("admin");
+      return listDevices(deps);
   }
+
+  const art = /^\/art\/([^/]+)$/.exec(path);
+  if (method === "GET" && art) {
+    require("admin", "device");
+    return coverArt(decodeURIComponent(art[1] ?? ""), deps);
+  }
+
+  const device = /^\/devices\/([^/]+)$/.exec(path);
+  if (method === "DELETE" && device) {
+    require("admin");
+    return revokeDevice(decodeURIComponent(device[1] ?? ""), deps);
+  }
+
+  throw new HttpError(404, "not_found", "No such route");
 }
 
 async function checkTracks(req: HttpRequest, deps: Deps): Promise<HttpResponse> {
@@ -122,7 +172,7 @@ async function createUpload(req: HttpRequest, deps: Deps): Promise<HttpResponse>
   });
   const body: CreateUploadResponse = {
     audio: { url: audioUrl, headers: { "content-type": "audio/mpeg" } },
-    expiresAt: new Date(deps.now().getTime() + expiresInSeconds * 1000).toISOString(),
+    expiresAt: inSeconds(deps, expiresInSeconds),
   };
 
   if (artHash && !(await deps.storage.objectExists(artKey(artHash)))) {
@@ -170,4 +220,76 @@ async function library(req: HttpRequest, deps: Deps): Promise<HttpResponse> {
     hasMore: page.hasMore,
   };
   return json(200, body);
+}
+
+/** Short-lived download links for playing. Tracks that are unknown or deleted are left out. */
+async function streamUrls(req: HttpRequest, deps: Deps): Promise<HttpResponse> {
+  const { trackIds } = parseStreamUrls(parseJson(req.body));
+  const live = await deps.store.findLiveHashes(trackIds);
+  const ttl = API_LIMITS.streamUrlTtlSeconds;
+  const expiresAt = inSeconds(deps, ttl);
+
+  const urls = await Promise.all(
+    [...new Set(trackIds)]
+      .filter((id) => live.has(id))
+      .map(async (trackId) => ({ trackId, url: await deps.storage.presignGet(audioKey(trackId), ttl), expiresAt })),
+  );
+  const body: StreamUrlsResponse = { urls };
+  return json(200, body);
+}
+
+async function coverArt(artHash: string, deps: Deps): Promise<HttpResponse> {
+  hashField(artHash, "artHash");
+  if (!(await deps.storage.objectExists(artKey(artHash)))) {
+    throw new HttpError(404, "not_found", "No such cover");
+  }
+  const url = await deps.storage.presignGet(artKey(artHash), API_LIMITS.streamUrlTtlSeconds);
+  return { statusCode: 302, headers: { location: url, "cache-control": "private, max-age=300" }, body: "" };
+}
+
+async function createPairing(req: HttpRequest, deps: Deps): Promise<HttpResponse> {
+  const { deviceName } = parseCreatePairing(req.body ? parseJson(req.body) : undefined);
+  const code = newPairingCode(deps.random);
+  const expiresAt = inSeconds(deps, API_LIMITS.pairingCodeTtlSeconds);
+
+  await deps.store.createPairing({
+    codeHash: sha256Hex(code),
+    expiresAt,
+    ...(deviceName ? { deviceName } : {}),
+  });
+  const body: CreatePairingResponse = { code: formatPairingCode(code), expiresAt };
+  return json(201, body);
+}
+
+async function claimPairing(req: HttpRequest, deps: Deps): Promise<HttpResponse> {
+  const { code, deviceName } = parseClaimPairing(parseJson(req.body));
+  const normalized = normalizePairingCode(code);
+  const claimed = isPairingCode(normalized) ? await deps.store.claimPairing(sha256Hex(normalized), deps.now()) : undefined;
+  // One answer for malformed, unknown, used and expired codes, so a guesser learns nothing.
+  if (!claimed) throw new HttpError(400, "invalid_code", "That pairing code is not valid or has expired");
+
+  const { id, token } = newDeviceCredentials(deps.random);
+  await deps.store.createDevice({
+    id,
+    name: deviceName ?? claimed.deviceName ?? "Phone",
+    tokenHash: sha256Hex(token),
+    pairedAt: deps.now().toISOString(),
+  });
+  const body: ClaimPairingResponse = { deviceId: id, deviceToken: token };
+  return json(201, body);
+}
+
+async function listDevices(deps: Deps): Promise<HttpResponse> {
+  const devices = await deps.store.listDevices();
+  const body: ListDevicesResponse = {
+    devices: devices.map(({ tokenHash: _tokenHash, ...device }) => device),
+  };
+  return json(200, body);
+}
+
+async function revokeDevice(id: string, deps: Deps): Promise<HttpResponse> {
+  if (!DEVICE_ID.test(id) || !(await deps.store.deleteDevice(id))) {
+    throw new HttpError(404, "not_found", "No such device");
+  }
+  return { statusCode: 204, headers: {}, body: "" };
 }

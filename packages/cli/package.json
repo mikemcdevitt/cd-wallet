@@ -16,9 +16,11 @@
     "@aws-sdk/client-sts": "^3.1163.0",
     "@aws-sdk/lib-dynamodb": "^3.1163.0",
     "@cdwallet/shared": "workspace:*",
-    "music-metadata": "^12.3.5"
+    "music-metadata": "^12.3.5",
+    "qrcode": "^1.5.4"
   },
   "devDependencies": {
-    "@cdwallet/api": "workspace:*"
+    "@cdwallet/api": "workspace:*",
+    "@types/qrcode": "^1.5.6"
   }
 }

@@ -2,6 +2,7 @@ import type {
   AddResult,
   DeviceRecord,
   LibraryPage,
+  PairingRecord,
   Settings,
   Store,
   StoredTrack,
@@ -15,6 +16,7 @@ export class MemoryStore implements Store {
   private version = 0;
   private readonly tracks = new Map<string, StoredTrack>();
   private readonly devices = new Map<string, DeviceRecord>();
+  private readonly pairings = new Map<string, PairingRecord>();
 
   setAdminTokenHash(hash: string): void {
     this.adminTokenHash = hash;
@@ -69,6 +71,34 @@ export class MemoryStore implements Store {
     const last = tracks[tracks.length - 1];
     const version = hasMore ? (last?.version ?? after) : Math.max(this.version, last?.version ?? 0);
     return { version, tracks, hasMore };
+  }
+
+  async createPairing(record: PairingRecord): Promise<void> {
+    this.pairings.set(record.codeHash, record);
+  }
+
+  async claimPairing(codeHash: string, now: Date): Promise<PairingRecord | undefined> {
+    const record = this.pairings.get(codeHash);
+    if (!record || Date.parse(record.expiresAt) <= now.getTime()) return undefined;
+    this.pairings.delete(codeHash);
+    return record;
+  }
+
+  async createDevice(device: DeviceRecord): Promise<void> {
+    this.devices.set(device.id, device);
+  }
+
+  async listDevices(): Promise<DeviceRecord[]> {
+    return [...this.devices.values()].sort((a, b) => a.pairedAt.localeCompare(b.pairedAt));
+  }
+
+  async deleteDevice(id: string): Promise<boolean> {
+    return this.devices.delete(id);
+  }
+
+  async touchDevice(id: string, now: string): Promise<void> {
+    const device = this.devices.get(id);
+    if (device) this.devices.set(id, { ...device, lastSeenAt: now });
   }
 }
 

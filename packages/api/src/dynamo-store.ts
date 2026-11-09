@@ -1,16 +1,20 @@
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import {
   BatchGetCommand,
+  DeleteCommand,
   DynamoDBDocumentClient,
   GetCommand,
+  PutCommand,
   QueryCommand,
   TransactWriteCommand,
+  UpdateCommand,
 } from "@aws-sdk/lib-dynamodb";
 import { HttpError } from "./errors";
 import type {
   AddResult,
   DeviceRecord,
   LibraryPage,
+  PairingRecord,
   Settings,
   Store,
   StoredTrack,
@@ -19,12 +23,16 @@ import type {
 
 /**
  * Single-table layout (partition key `pk` only):
- *   TRACK#<sha256>   one item per track, also in the `byVersion` index
- *   DEVICE#<id>      one item per paired phone
+ *   TRACK#<sha256>   one item per track, also in the `byVersion` index (partition "LIBRARY")
+ *   DEVICE#<id>      one item per paired phone, also in `byVersion` (partition "DEVICE", sorted by pairing time)
+ *   PAIRING#<hash>   a pairing code waiting to be used; DynamoDB deletes it via the `ttl` attribute
  *   SETTINGS         admin token hash and the library version counter
  */
 export const VERSION_INDEX = "byVersion";
 const LIBRARY = "LIBRARY";
+const DEVICES = "DEVICE";
+const isConditionFailure = (err: unknown): boolean =>
+  err instanceof Error && err.name === "ConditionalCheckFailedException";
 const TRACK_PREFIX = "TRACK#";
 const MAX_ADD_ATTEMPTS = 5;
 
@@ -184,5 +192,124 @@ export class DynamoStore implements Store {
     const last = tracks[tracks.length - 1];
     const version = hasMore ? (last?.version ?? after) : Math.max(settings.libraryVersion, last?.version ?? 0);
     return { version, tracks, hasMore };
+  }
+
+  async createPairing(record: PairingRecord): Promise<void> {
+    const expiresEpoch = Math.floor(Date.parse(record.expiresAt) / 1000);
+    await this.doc.send(
+      new PutCommand({
+        TableName: this.tableName,
+        Item: {
+          pk: `PAIRING#${record.codeHash}`,
+          codeHash: record.codeHash,
+          deviceName: record.deviceName,
+          expiresAt: record.expiresAt,
+          expiresEpoch,
+          // Expired codes are useless immediately; DynamoDB removes the leftovers within a day or so.
+          ttl: expiresEpoch + 3600,
+        },
+        ConditionExpression: "attribute_not_exists(pk)",
+      }),
+    );
+  }
+
+  async claimPairing(codeHash: string, now: Date): Promise<PairingRecord | undefined> {
+    try {
+      // Deleting and checking in one step is what makes a code single-use, even if two phones race.
+      const res = await this.doc.send(
+        new DeleteCommand({
+          TableName: this.tableName,
+          Key: { pk: `PAIRING#${codeHash}` },
+          ConditionExpression: "attribute_exists(pk) AND expiresEpoch > :now",
+          ExpressionAttributeValues: { ":now": Math.floor(now.getTime() / 1000) },
+          ReturnValues: "ALL_OLD",
+        }),
+      );
+      const item = res.Attributes;
+      if (!item) return undefined;
+      const record: PairingRecord = { codeHash, expiresAt: String(item.expiresAt) };
+      if (typeof item.deviceName === "string") record.deviceName = item.deviceName;
+      return record;
+    } catch (err) {
+      if (isConditionFailure(err)) return undefined;
+      throw err;
+    }
+  }
+
+  async createDevice(device: DeviceRecord): Promise<void> {
+    await this.doc.send(
+      new PutCommand({
+        TableName: this.tableName,
+        Item: {
+          pk: `DEVICE#${device.id}`,
+          gsi1pk: DEVICES,
+          gsi1sk: Date.parse(device.pairedAt),
+          ...device,
+        },
+        ConditionExpression: "attribute_not_exists(pk)",
+      }),
+    );
+  }
+
+  async listDevices(): Promise<DeviceRecord[]> {
+    const devices: DeviceRecord[] = [];
+    let startKey: Record<string, unknown> | undefined;
+    do {
+      const res = await this.doc.send(
+        new QueryCommand({
+          TableName: this.tableName,
+          IndexName: VERSION_INDEX,
+          KeyConditionExpression: "gsi1pk = :p",
+          ExpressionAttributeValues: { ":p": DEVICES },
+          ScanIndexForward: true,
+          ...(startKey ? { ExclusiveStartKey: startKey } : {}),
+        }),
+      );
+      for (const item of res.Items ?? []) {
+        const device: DeviceRecord = {
+          id: String(item.id),
+          name: String(item.name ?? ""),
+          tokenHash: String(item.tokenHash ?? ""),
+          pairedAt: String(item.pairedAt ?? ""),
+        };
+        if (typeof item.lastSeenAt === "string") device.lastSeenAt = item.lastSeenAt;
+        devices.push(device);
+      }
+      startKey = res.LastEvaluatedKey;
+    } while (startKey);
+    return devices;
+  }
+
+  async deleteDevice(id: string): Promise<boolean> {
+    try {
+      await this.doc.send(
+        new DeleteCommand({
+          TableName: this.tableName,
+          Key: { pk: `DEVICE#${id}` },
+          ConditionExpression: "attribute_exists(pk)",
+        }),
+      );
+      return true;
+    } catch (err) {
+      if (isConditionFailure(err)) return false;
+      throw err;
+    }
+  }
+
+  async touchDevice(id: string, now: string): Promise<void> {
+    try {
+      // Only updates a device that still exists, so a revoked phone is never brought back.
+      await this.doc.send(
+        new UpdateCommand({
+          TableName: this.tableName,
+          Key: { pk: `DEVICE#${id}` },
+          UpdateExpression: "SET lastSeenAt = :t",
+          ConditionExpression: "attribute_exists(pk)",
+          ExpressionAttributeValues: { ":t": now },
+        }),
+      );
+    } catch (err) {
+      if (!isConditionFailure(err)) throw err;
+    }
   }
 }

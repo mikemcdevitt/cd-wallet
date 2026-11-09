@@ -19,9 +19,12 @@ function hashMatches(token: string, expectedHex: string | undefined): boolean {
   return actual.length === expected.length && timingSafeEqual(actual, expected);
 }
 
+const TOUCH_INTERVAL_MS = 60 * 60 * 1000;
+
 export async function authenticate(
   authorization: string | undefined,
   store: Store,
+  now: Date = new Date(),
 ): Promise<Principal | undefined> {
   const match = /^Bearer\s+(\S+)$/i.exec(authorization ?? "");
   const token = match?.[1];
@@ -36,7 +39,13 @@ export async function authenticate(
     const deviceId = token.slice(DEVICE_PREFIX.length).split(".")[0];
     if (!deviceId) return undefined;
     const device = await store.getDevice(deviceId);
-    return device && hashMatches(token, device.tokenHash) ? { role: "device", deviceId } : undefined;
+    if (!device || !hashMatches(token, device.tokenHash)) return undefined;
+    // "Last seen" is for the owner's device list, so hourly is plenty; a failure here must not block the request.
+    const lastSeen = device.lastSeenAt ? Date.parse(device.lastSeenAt) : 0;
+    if (now.getTime() - lastSeen > TOUCH_INTERVAL_MS) {
+      await store.touchDevice(deviceId, now.toISOString()).catch(() => undefined);
+    }
+    return { role: "device", deviceId };
   }
 
   return undefined;

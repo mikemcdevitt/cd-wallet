@@ -47,6 +47,15 @@ export interface LibraryPage {
   hasMore: boolean;
 }
 
+export interface PairingRecord {
+  /** SHA-256 (hex) of the normalized pairing code; the code itself is never stored. */
+  codeHash: string;
+  /** Name the owner gave with `cdwallet pair --device-name`, if any. */
+  deviceName?: string;
+  /** ISO 8601. */
+  expiresAt: string;
+}
+
 export interface Store {
   getSettings(): Promise<Settings>;
   getDevice(id: string): Promise<DeviceRecord | undefined>;
@@ -56,6 +65,17 @@ export interface Store {
   addTrack(write: TrackWrite): Promise<AddResult>;
   /** Tracks whose version is greater than `after`, oldest change first. */
   listChanges(after: number, limit: number): Promise<LibraryPage>;
+
+  createPairing(record: PairingRecord): Promise<void>;
+  /** Uses up a pairing code: returns it once, and only if it has not expired. */
+  claimPairing(codeHash: string, now: Date): Promise<PairingRecord | undefined>;
+  createDevice(device: DeviceRecord): Promise<void>;
+  /** Oldest pairing first. */
+  listDevices(): Promise<DeviceRecord[]>;
+  /** Returns false if there was no such device. */
+  deleteDevice(id: string): Promise<boolean>;
+  /** Records when a device was last used. Does nothing if the device was revoked meanwhile. */
+  touchDevice(id: string, now: string): Promise<void>;
 }
 
 export function toTrack(stored: StoredTrack): Track {

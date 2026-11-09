@@ -47,6 +47,8 @@ export class CdWalletStack extends cdk.Stack {
     const table = new dynamodb.Table(this, "Library", {
       partitionKey: { name: "pk", type: dynamodb.AttributeType.STRING },
       billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
+      // Unused pairing codes delete themselves.
+      timeToLiveAttribute: "ttl",
       pointInTimeRecoverySpecification: { pointInTimeRecoveryEnabled: true },
       removalPolicy: cdk.RemovalPolicy.RETAIN,
     });
@@ -73,7 +75,14 @@ export class CdWalletStack extends cdk.Stack {
     // Least privilege: only the DynamoDB and S3 calls the API actually makes.
     apiFn.addToRolePolicy(
       new iam.PolicyStatement({
-        actions: ["dynamodb:GetItem", "dynamodb:BatchGetItem", "dynamodb:PutItem", "dynamodb:UpdateItem", "dynamodb:Query"],
+        actions: [
+          "dynamodb:GetItem",
+          "dynamodb:BatchGetItem",
+          "dynamodb:PutItem",
+          "dynamodb:UpdateItem",
+          "dynamodb:DeleteItem",
+          "dynamodb:Query",
+        ],
         resources: [table.tableArn, `${table.tableArn}/index/byVersion`],
       }),
     );

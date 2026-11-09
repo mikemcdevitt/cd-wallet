@@ -42,6 +42,22 @@ export async function resolveTarget(profile?: string, regionFlag?: string): Prom
   }
 }
 
+/** The stack's outputs as `{ [stackName]: { [key]: value } }`, or undefined if the stack does not exist. */
+export async function stackOutputs(target: Target, stackName: string): Promise<Record<string, Record<string, string>> | undefined> {
+  const cfn = new CloudFormationClient(clientConfig(target));
+  try {
+    const res = await cfn.send(new DescribeStacksCommand({ StackName: stackName }));
+    const stack = res.Stacks?.[0];
+    if (!stack) return undefined;
+    const outputs: Record<string, string> = {};
+    for (const o of stack.Outputs ?? []) if (o.OutputKey && o.OutputValue) outputs[o.OutputKey] = o.OutputValue;
+    return { [stackName]: outputs };
+  } catch (err) {
+    if ((err as Error).name === "ValidationError") return undefined;
+    throw err;
+  }
+}
+
 /** The stack's status, or undefined if it does not exist. */
 export async function stackStatus(target: Target, stackName: string): Promise<string | undefined> {
   const cfn = new CloudFormationClient(clientConfig(target));
@@ -91,4 +107,16 @@ export async function installAdminTokenHash(target: Target, tableName: string, h
     }
     throw err;
   }
+}
+
+/** Replaces the stored admin token hash. Old admin tokens stop working; paired phones are not affected. */
+export async function replaceAdminTokenHash(target: Target, tableName: string, hash: string): Promise<void> {
+  await settingsClient(target).send(
+    new UpdateCommand({
+      TableName: tableName,
+      Key: { pk: "SETTINGS" },
+      UpdateExpression: "SET adminTokenHash = :h, libraryVersion = if_not_exists(libraryVersion, :zero)",
+      ExpressionAttributeValues: { ":h": hash, ":zero": 0 },
+    }),
+  );
 }
