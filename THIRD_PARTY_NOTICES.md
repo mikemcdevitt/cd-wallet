@@ -4,7 +4,7 @@ CD Wallet is released under the [MIT license](LICENSE). It builds on open-source
 
 ## Audit
 
-A check of the Android app's production dependency tree (483 packages, November 2026) found no GPL, AGPL or LGPL-only licenses. Outside the permissive licenses above, it found:
+A check of the Android app's production dependency tree (about 500 package versions, November 2026) found no GPL, AGPL or LGPL-only licenses. Outside the permissive licenses above, it found:
 
 | License | Packages | Note |
 | --- | --- | --- |
@@ -21,4 +21,17 @@ pnpm -r licenses list --prod
 
 ## Notices in the app
 
-Permissive licenses require that their copyright notices travel with the software. This repository keeps them in each package's license file. An in-app "Open-source licenses" screen for the released APK is still to do and should be added before the first release.
+Permissive licenses require that their copyright notices travel with the software. The Android app has an **Open-source licenses** screen (Settings) that shows CD Wallet's own license and the name, version, license and full license text of every production dependency.
+
+The list is generated from the installed dependencies into `apps/android/src/licenses/licenses.generated.json`, and CI fails if it is out of date:
+
+```sh
+pnpm --filter @cdwallet/android licenses:generate   # rewrite the file after changing dependencies
+pnpm --filter @cdwallet/android licenses:check      # what CI runs
+```
+
+Notes:
+
+- The list includes some build-time packages, which is deliberately over-inclusive.
+- OS- and CPU-specific native build tools are left out, so the file is the same on every machine.
+- Some packages (mostly Metro and other React Native tooling) publish no license file of their own. The app shows their license name and project link instead; React Native's own license text is included.

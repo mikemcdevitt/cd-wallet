@@ -38,6 +38,7 @@ function Gate() {
         <Stack.Screen name="pair" options={{ title: "Pair this phone", headerBackVisible: false }} />
         <Stack.Screen name="collection" options={{ title: "" }} />
         <Stack.Screen name="settings" options={{ title: "Settings" }} />
+        <Stack.Screen name="licenses" options={{ title: "Open-source licenses" }} />
         <Stack.Screen name="player" options={{ title: "Now playing", presentation: "modal" }} />
       </Stack>
       {phase === "ready" ? <MiniPlayer /> : null}

@@ -1,3 +1,4 @@
+import { useRouter } from "expo-router";
 import { Alert, Pressable, Text, View } from "react-native";
 import { useApp } from "../src/data/app-context";
 import { usePlayer } from "../src/player/player";
@@ -6,6 +7,7 @@ import { colors, spacing } from "../src/ui/theme";
 export default function Settings() {
   const { session, syncNow, unpair, sync } = useApp();
   const player = usePlayer();
+  const router = useRouter();
   const button = { padding: spacing.md, borderRadius: 8, backgroundColor: colors.surface, marginTop: spacing.md } as const;
   return (
     <View style={{ flex: 1, padding: spacing.lg }}>
@@ -15,6 +17,9 @@ export default function Settings() {
       </Text>
       <Pressable style={button} onPress={() => void syncNow()} accessibilityRole="button">
         <Text style={{ color: colors.text }}>{sync.status === "syncing" ? "Updating…" : "Update library now"}</Text>
+      </Pressable>
+      <Pressable style={button} onPress={() => router.push("/licenses")} accessibilityRole="button">
+        <Text style={{ color: colors.text }}>Open-source licenses</Text>
       </Pressable>
       <Pressable
         style={button}

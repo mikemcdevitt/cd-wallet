@@ -37,6 +37,8 @@
     "web": "expo start --web",
     "typecheck": "tsc -p .",
     "test": "vitest run",
-    "bundle": "expo export --platform android --no-bytecode --output-dir dist"
+    "bundle": "expo export --platform android --no-bytecode --output-dir dist",
+    "licenses:generate": "tsx scripts/generate-licenses.ts",
+    "licenses:check": "tsx scripts/generate-licenses.ts --check"
   }
 }
