@@ -22,6 +22,7 @@ jobs:
       - run: pnpm typecheck
       - run: pnpm test
       - run: pnpm synth
+      - run: pnpm --filter @cdwallet/android licenses:check
       - run: pnpm --filter @cdwallet/android bundle
         env:
           CI: "1"
