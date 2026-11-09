@@ -67,7 +67,10 @@ export interface StreamUrlsResponse {
   urls: Array<{ trackId: string; url: string; expiresAt: string }>;
 }
 
-/** GET /art/{artHash}  (device or admin): 302 redirect to a presigned image URL. */
+/**
+ * GET /art/{artHash}  (device or admin): 302 redirect to a short-lived signed image URL, or 404.
+ * Covers never change for a given hash, so apps should download one once and keep it.
+ */
 
 /** POST /pairing  (admin) */
 export interface CreatePairingRequest {
@@ -102,4 +105,7 @@ export const API_LIMITS = {
   pairingCodeTtlSeconds: 300,
   /** Largest single MP3 the API will sign an upload for. */
   maxAudioBytes: 250 * 1024 * 1024,
+  /** How long a stream or cover URL stays valid. */
+  streamUrlTtlSeconds: 3600,
+  maxDeviceNameLength: 100,
 } as const;

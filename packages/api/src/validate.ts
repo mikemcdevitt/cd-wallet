@@ -2,8 +2,10 @@ import {
   API_LIMITS,
   type AddTrackRequest,
   type CheckTracksRequest,
+  type CreatePairingRequest,
   type CreateUploadRequest,
   type MetaSource,
+  type StreamUrlsRequest,
 } from "@cdwallet/shared";
 import { HttpError } from "./errors";
 
@@ -113,4 +115,26 @@ export function parseSince(value: string | undefined): number {
   const n = Number(value);
   if (!Number.isInteger(n) || n < 0) return bad("since must be a non-negative integer");
   return n;
+}
+
+export function parseStreamUrls(body: unknown): StreamUrlsRequest {
+  const ids = asObject(body).trackIds;
+  if (!Array.isArray(ids) || ids.length === 0 || ids.length > API_LIMITS.streamUrlsMaxTracks) {
+    return bad(`trackIds must be an array of 1 to ${API_LIMITS.streamUrlsMaxTracks} items`);
+  }
+  return { trackIds: ids.map((id) => hashField(id, "trackIds[]")) };
+}
+
+/** The pairing request may have no body at all. */
+export function parseCreatePairing(body: unknown): CreatePairingRequest {
+  if (body === undefined) return {};
+  const name = optText(asObject(body), "deviceName", API_LIMITS.maxDeviceNameLength);
+  return name === undefined ? {} : { deviceName: name };
+}
+
+export function parseClaimPairing(body: unknown): { code: string; deviceName?: string } {
+  const o = asObject(body);
+  if (typeof o.code !== "string" || o.code.length > 64) return bad("code must be a string");
+  const deviceName = optText(o, "deviceName", API_LIMITS.maxDeviceNameLength);
+  return deviceName === undefined ? { code: o.code } : { code: o.code, deviceName };
 }

@@ -6,8 +6,10 @@ import {
   type AddTrackResponse,
   type ApiErrorBody,
   type CheckTracksResponse,
+  type CreatePairingResponse,
   type CreateUploadRequest,
   type CreateUploadResponse,
+  type ListDevicesResponse,
   type TrackMetadata,
 } from "@cdwallet/shared";
 import { CliError } from "../errors";
@@ -79,7 +81,7 @@ export class ApiClient {
         }
         throw new ApiError(res.status, code, message, res.status >= 500);
       }
-      return JSON.parse(text) as T;
+      return (text === "" ? undefined : JSON.parse(text)) as T;
     }, 3, this.retryDelayMs);
   }
 
@@ -100,6 +102,18 @@ export class ApiClient {
 
   addTrack(metadata: TrackMetadata): Promise<AddTrackResponse> {
     return this.request("POST", "/tracks", metadata);
+  }
+
+  createPairing(deviceName?: string): Promise<CreatePairingResponse> {
+    return this.request("POST", "/pairing", deviceName ? { deviceName } : {});
+  }
+
+  async listDevices(): Promise<ListDevicesResponse["devices"]> {
+    return (await this.request<ListDevicesResponse>("GET", "/devices")).devices;
+  }
+
+  async revokeDevice(id: string): Promise<void> {
+    await this.request<void>("DELETE", `/devices/${id}`);
   }
 }
 
