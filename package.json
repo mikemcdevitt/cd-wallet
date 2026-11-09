@@ -12,7 +12,8 @@
     "cdwallet": "pnpm --silent --dir packages/cli exec tsx src/index.ts",
     "typecheck": "pnpm -r --if-present typecheck",
     "test": "pnpm -r --if-present test",
-    "synth": "pnpm --filter @cdwallet/infra synth"
+    "synth": "pnpm --filter @cdwallet/infra synth",
+    "dev:api": "pnpm --silent --dir packages/cli exec tsx src/dev/serve.ts"
   },
   "devDependencies": {
     "@types/node": "^26.6.6",

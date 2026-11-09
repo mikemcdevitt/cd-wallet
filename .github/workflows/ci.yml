@@ -22,3 +22,8 @@ jobs:
       - run: pnpm typecheck
       - run: pnpm test
       - run: pnpm synth
+      - run: pnpm --filter @cdwallet/android bundle
+        env:
+          CI: "1"
+          EXPO_NO_TELEMETRY: "1"
+          EXPO_OFFLINE: "1"
