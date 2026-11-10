@@ -7,6 +7,8 @@ import { CliError } from "../errors";
 export interface ImportOptions {
   folder: string;
   name: string;
+  /** True when the name came from --name or CDWALLET_NAME, so no fallback should be tried. */
+  nameExplicit: boolean;
   dryRun: boolean;
   concurrency: number;
   help: boolean;
@@ -48,7 +50,7 @@ export function parseImportArgs(
   const { values, positionals } = parsed;
 
   if (values.help) {
-    return { folder: "", name: "default", dryRun: false, concurrency: 4, help: true };
+    return { folder: "", name: "default", nameExplicit: false, dryRun: false, concurrency: 4, help: true };
   }
   if (positionals.length !== 1 || !positionals[0]) {
     throw new CliError(`Tell me which folder to import, for example: cdwallet import ~/Music\n\n${IMPORT_HELP}`);
@@ -64,6 +66,7 @@ export function parseImportArgs(
   return {
     folder: path.resolve(env.INIT_CWD ?? process.cwd(), typed),
     name: validateName(values.name ?? env.CDWALLET_NAME ?? "default"),
+    nameExplicit: Boolean(values.name ?? env.CDWALLET_NAME),
     dryRun: values["dry-run"] ?? false,
     concurrency,
     help: false,

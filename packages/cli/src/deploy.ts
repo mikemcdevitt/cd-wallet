@@ -5,6 +5,7 @@ import { planAdminToken } from "./admin-token";
 import { installAdminTokenHash, isBootstrapped, readAdminTokenHash, resolveTarget, stackStatus } from "./aws";
 import { contextArgs, parseStackOutputs, runCdk, STACK_NAME } from "./cdk";
 import { configDir, configPath, loadConfig, saveConfig, type DeploymentConfig } from "./config";
+import { importCommand } from "./deployment";
 import { CliError } from "./errors";
 import { DEPLOY_HELP, effectiveSettings, parseDeployArgs } from "./options";
 import { ask, confirm, isInteractive } from "./prompt";
@@ -103,7 +104,7 @@ database are kept if you ever remove the stack, so your music cannot be deleted 
 
   console.log(`\nDeployed.\n  API     ${outputs.apiUrl}\n  Bucket  ${outputs.bucketName}\n  Saved   ${file} (contains your admin token; keep it private)`);
   await checkHealth(outputs.apiUrl);
-  console.log("\nNext: cdwallet import ~/Music");
+  console.log(`\nNext: ${importCommand(options.name)}   (use your own music folder)`);
 }
 
 async function checkHealth(apiUrl: string): Promise<void> {
