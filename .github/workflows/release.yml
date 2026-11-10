@@ -1,0 +1,142 @@
+name: Release APK
+
+# Builds a signed Android APK and attaches it to a GitHub release.
+#   Push a tag like v0.1.0 (or v0.2.0-rc.1 for a pre-release) to publish a release.
+#   Or run it by hand from the Actions tab to test the build; that uploads the APK as a
+#   workflow artifact and publishes nothing.
+# One-time setup (signing key and secrets) is described in RELEASING.md.
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm typecheck
+      - run: pnpm test
+      - run: pnpm --filter @cdwallet/android licenses:check
+
+      - name: Work out the version
+        id: version
+        run: |
+          if [ "${GITHUB_REF_TYPE}" = "tag" ]; then
+            tag="${GITHUB_REF_NAME}"
+            if ! [[ "$tag" =~ ^v([0-9]+)\.([0-9]+)\.([0-9]+)(-[0-9A-Za-z.-]+)?$ ]]; then
+              echo "::error::Tag '$tag' must look like v1.2.3 or v1.2.3-rc.1"; exit 1
+            fi
+            major="${BASH_REMATCH[1]}"; minor="${BASH_REMATCH[2]}"; patch="${BASH_REMATCH[3]}"
+            if [ "$minor" -ge 100 ] || [ "$patch" -ge 100 ]; then
+              echo "::error::Minor and patch numbers must be below 100 (they are packed into Android's versionCode)"; exit 1
+            fi
+            echo "version=${tag#v}" >> "$GITHUB_OUTPUT"
+            echo "code=$((major * 10000 + minor * 100 + patch))" >> "$GITHUB_OUTPUT"
+            echo "prerelease=$([[ "$tag" == *-* ]] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+          else
+            echo "version=0.0.0-test" >> "$GITHUB_OUTPUT"
+            echo "code=1" >> "$GITHUB_OUTPUT"
+            echo "prerelease=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Restore the signing key
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          if [ -z "$KEYSTORE_BASE64" ] || [ -z "$KEYSTORE_PASSWORD" ] || [ -z "$KEY_ALIAS" ] || [ -z "$KEY_PASSWORD" ]; then
+            echo "::error::Signing secrets are missing. See RELEASING.md."; exit 1
+          fi
+          echo "$KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/release.keystore"
+          echo "CDWALLET_KEYSTORE_PATH=$RUNNER_TEMP/release.keystore" >> "$GITHUB_ENV"
+
+      - name: Generate the Android project
+        working-directory: apps/android
+        env:
+          CI: "1"
+          EXPO_NO_TELEMETRY: "1"
+          CDWALLET_ALLOW_HTTP: "" # release builds are https-only
+          CDWALLET_VERSION: ${{ steps.version.outputs.version }}
+          CDWALLET_VERSION_CODE: ${{ steps.version.outputs.code }}
+          CDWALLET_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          CDWALLET_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          CDWALLET_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: pnpm exec expo prebuild --platform android --no-install
+
+      - name: Build the release APK
+        working-directory: apps/android/android
+        env:
+          CDWALLET_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          CDWALLET_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          CDWALLET_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: ./gradlew assembleRelease --no-daemon --console=plain
+
+      - name: Check the APK is signed with your key
+        id: verify
+        env:
+          CDWALLET_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          apk=$(ls apps/android/android/app/build/outputs/apk/release/*.apk | head -n 1)
+          apksigner=$(ls "$ANDROID_HOME"/build-tools/*/apksigner | sort -V | tail -n 1)
+          certs=$("$apksigner" verify --print-certs "$apk")
+          echo "$certs"
+          if echo "$certs" | grep -qi "Android Debug"; then
+            echo "::error::The APK is signed with the debug key"; exit 1
+          fi
+          sha=$(echo "$certs" | sed -n 's/^Signer #1 certificate SHA-256 digest: //p' | head -n 1)
+          mkdir -p dist
+          cp "$apk" "dist/cd-wallet-${VERSION}.apk"
+          (cd dist && sha256sum "cd-wallet-${VERSION}.apk" > "cd-wallet-${VERSION}.apk.sha256")
+          echo "cert_sha256=$sha" >> "$GITHUB_OUTPUT"
+
+      - name: Keep the APK as a workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: cd-wallet-apk
+          path: dist/*
+          retention-days: 14
+
+      - name: Publish the release
+        if: github.ref_type == 'tag'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.version.outputs.version }}
+          PRERELEASE: ${{ steps.version.outputs.prerelease }}
+          CERT_SHA256: ${{ steps.verify.outputs.cert_sha256 }}
+        run: |
+          cat > notes.md <<NOTES
+          **Install:** download \`cd-wallet-${VERSION}.apk\` on your Android phone and open it (Android will ask you to allow installs from your browser or files app). Check the download against \`cd-wallet-${VERSION}.apk.sha256\` if you like: \`sha256sum -c cd-wallet-${VERSION}.apk.sha256\`.
+
+          Signing certificate SHA-256 (the same for every release; if it changes, do not install):
+          \`${CERT_SHA256}\`
+
+          You need your own CD Wallet deployment first. See the README.
+
+          NOTES
+          flags=""
+          if [ "$PRERELEASE" = "true" ]; then flags="--prerelease"; fi
+          gh release create "$GITHUB_REF_NAME" $flags --title "CD Wallet ${VERSION}" --generate-notes --notes-file notes.md dist/*

@@ -30,3 +30,6 @@ apps/android/ios/
 
 # Local test files (not for the repo)
 .dev/
+
+# Generated design exports (see design/README.md)
+design/out/
