@@ -6,6 +6,7 @@ All notable changes to CD Wallet are listed here. The format follows [Keep a Cha
 
 ### Added
 
+- M4A (AAC) support. `import` now uploads `.m4a` files as they are (no conversion) next to MP3s, reads their MP4 tags and cover art, and lists copy-protected `.m4p` and Apple Lossless files as skipped. Tracks carry an optional `container` (`mp3` or `m4a`, missing means MP3), so existing libraries need no migration. An M4A import against a deployment that predates this change stops with a message to run `cdwallet deploy` first.
 - CLI `destroy` command: removes the stack and keeps your bucket and database by default; `--delete-data` also deletes every song, the database and the saved settings, after you type the bucket name. `--dry-run` shows what would be removed (and how many files the bucket holds) without changing anything.
 - App: Shuffle (all songs or search results from the library, or one album), an "Up next" list in the player, and song/album/artist counts with a sync indicator in the library.
 - Open-source licenses screen in the app (Settings), generated from the dependency tree, with a CI check that keeps it current.

@@ -28,6 +28,16 @@ describe("POST /stream-urls", () => {
     expect(urls[0]?.expiresAt).toBe("2026-11-07T13:00:00.000Z");
   });
 
+  it("signs each track's own file, so MP3 and M4A tracks can mix", async () => {
+    await h.addTrack(1);
+    await h.addTrack(2, { container: "m4a" });
+    const { urls } = parse<StreamUrlsResponse>(await h.call("POST", "/stream-urls", { body: { trackIds: [hash(1), hash(2)] } }));
+    expect(urls.map((u) => u.url)).toEqual([
+      `https://s3.test/audio/${hash(1)}.mp3?get`,
+      `https://s3.test/audio/${hash(2)}.m4a?get`,
+    ]);
+  });
+
   it("leaves out unknown and deleted tracks", async () => {
     await h.addTrack(1);
     await h.addTrack(2);

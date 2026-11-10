@@ -1,3 +1,4 @@
+import type { AudioContainer } from "./audio";
 import type { Device, Track, TrackMetadata } from "./types";
 
 /**
@@ -26,9 +27,13 @@ export interface CheckTracksResponse {
 export interface CreateUploadRequest {
   hash: string;
   sizeBytes: number;
+  /** File format of the audio. Defaults to "mp3". */
+  container?: AudioContainer;
   artHash?: string;
 }
 export interface CreateUploadResponse {
+  /** The format the upload URL was signed for. Servers from before M4A support leave it out and always mean "mp3". */
+  container?: AudioContainer;
   audio: { url: string; headers?: Record<string, string> };
   /** Present only when `artHash` was sent and that art is not stored yet. */
   art?: { url: string; headers?: Record<string, string> };
@@ -103,7 +108,7 @@ export const API_LIMITS = {
   checkTracksMaxHashes: 500,
   streamUrlsMaxTracks: 20,
   pairingCodeTtlSeconds: 300,
-  /** Largest single MP3 the API will sign an upload for. */
+  /** Largest single audio file the API will sign an upload for. */
   maxAudioBytes: 250 * 1024 * 1024,
   /** How long a stream or cover URL stays valid. */
   streamUrlTtlSeconds: 3600,

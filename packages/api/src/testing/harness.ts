@@ -46,7 +46,7 @@ export function makeHarness(start = "2026-11-07T12:00:00.000Z") {
 
   /** Add a track the way the CLI would: audio uploaded, then registered. */
   async function addTrack(n: number, extra: Record<string, unknown> = {}): Promise<HttpResponse> {
-    storage.objects.add(`audio/${hash(n)}.mp3`);
+    storage.objects.add(`audio/${hash(n)}.${extra.container === "m4a" ? "m4a" : "mp3"}`);
     return call("POST", "/tracks", {
       body: {
         hash: hash(n), title: `Song ${n}`, artist: "Artist", album: "Album", durationSec: 200,

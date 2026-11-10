@@ -57,7 +57,7 @@ const parse = <T>(res: HttpResponse): T => JSON.parse(res.body) as T;
 
 /** Upload the audio "to S3" and add the track, as the CLI would. */
 async function addTrack(n: number, extra: Record<string, unknown> = {}): Promise<HttpResponse> {
-  storage.objects.add(`audio/${hash(n)}.mp3`);
+  storage.objects.add(`audio/${hash(n)}.${extra.container === "m4a" ? "m4a" : "mp3"}`);
   return call("POST", "/tracks", { body: trackBody(n, extra) });
 }
 
@@ -135,6 +135,23 @@ describe("POST /uploads", () => {
     expect(storage.presigned[0]).toMatchObject({ contentType: "audio/mpeg", contentLength: 1234 });
   });
 
+  it("signs an M4A upload for the m4a key with the audio/mp4 type, and says so in the answer", async () => {
+    const res = await call("POST", "/uploads", { body: { hash: hash(1), sizeBytes: 1234, container: "m4a" } });
+    expect(res.statusCode).toBe(200);
+    const body = parse<CreateUploadResponse>(res);
+    expect(body.container).toBe("m4a");
+    expect(body.audio.url).toContain(`audio/${hash(1)}.m4a`);
+    expect(body.audio.headers).toEqual({ "content-type": "audio/mp4" });
+    expect(storage.presigned[0]).toMatchObject({ contentType: "audio/mp4", contentLength: 1234 });
+  });
+
+  it("treats a missing container as an MP3 and rejects unknown ones", async () => {
+    expect(parse<CreateUploadResponse>(await call("POST", "/uploads", { body: { hash: hash(1), sizeBytes: 10 } })).container).toBe("mp3");
+    for (const container of ["flac", "", 3, null]) {
+      expect((await call("POST", "/uploads", { body: { hash: hash(1), sizeBytes: 10, container } })).statusCode).toBe(400);
+    }
+  });
+
   it("signs a cover art upload only when that art is not stored yet", async () => {
     const first = parse<CreateUploadResponse>(
       await call("POST", "/uploads", { body: { hash: hash(1), sizeBytes: 10, artHash: hash(9) } }),
@@ -181,6 +198,22 @@ describe("POST /tracks", () => {
     const again = await addTrack(1);
     expect(again.statusCode).toBe(200);
     expect(parse<AddTrackResponse>(again).libraryVersion).toBe(1);
+  });
+
+  it("adds an M4A track only once its m4a file is uploaded, and keeps the container", async () => {
+    storage.objects.add(`audio/${hash(5)}.mp3`); // an MP3 under the same hash does not count
+    const refused = await call("POST", "/tracks", { body: trackBody(5, { container: "m4a" }) });
+    expect(refused.statusCode).toBe(409);
+
+    const res = await addTrack(6, { container: "m4a" });
+    expect(res.statusCode).toBe(201);
+    expect(parse<AddTrackResponse>(res).track.container).toBe("m4a");
+    const library = parse<LibraryResponse>(await call("GET", "/library"));
+    expect(library.tracks[0]?.container).toBe("m4a");
+  });
+
+  it("rejects an unknown container", async () => {
+    expect((await addTrack(7, { container: "ogg" })).statusCode).toBe(400);
   });
 
   it("brings a deleted track back with a new version", async () => {

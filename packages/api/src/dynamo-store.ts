@@ -10,6 +10,7 @@ import {
   UpdateCommand,
 } from "@aws-sdk/lib-dynamodb";
 import { HttpError } from "./errors";
+import { audioKey } from "./keys";
 import type {
   AddResult,
   DeviceRecord,
@@ -85,7 +86,11 @@ export class DynamoStore implements Store {
   }
 
   async findLiveHashes(hashes: string[]): Promise<Set<string>> {
-    const live = new Set<string>();
+    return new Set((await this.findLiveAudioKeys(hashes)).keys());
+  }
+
+  async findLiveAudioKeys(hashes: string[]): Promise<Map<string, string>> {
+    const live = new Map<string, string>();
     const unique = [...new Set(hashes)];
     for (let i = 0; i < unique.length; i += 100) {
       let keys: Array<Record<string, unknown>> = unique
@@ -96,12 +101,14 @@ export class DynamoStore implements Store {
         const res = await this.doc.send(
           new BatchGetCommand({
             RequestItems: {
-              [this.tableName]: { Keys: keys, ConsistentRead: true, ProjectionExpression: "pk, deletedAt" },
+              [this.tableName]: { Keys: keys, ConsistentRead: true, ProjectionExpression: "pk, deletedAt, audioKey" },
             },
           }),
         );
         for (const item of res.Responses?.[this.tableName] ?? []) {
-          if (!item.deletedAt) live.add(String(item.pk).slice(TRACK_PREFIX.length));
+          if (item.deletedAt) continue;
+          const hash = String(item.pk).slice(TRACK_PREFIX.length);
+          live.set(hash, typeof item.audioKey === "string" ? item.audioKey : audioKey(hash));
         }
         keys = res.UnprocessedKeys?.[this.tableName]?.Keys ?? [];
       }

@@ -13,6 +13,8 @@ export interface ImportResult {
   duplicatesInFolder: number;
   alreadyInLibrary: number;
   added: number;
+  /** Files that are fine but cannot be imported (copy-protected, Apple Lossless). Retrying will not help. */
+  skipped: Failure[];
   failures: Failure[];
 }
 
@@ -34,7 +36,7 @@ const list = (items: string[], max = 10): string[] => [
 
 export function formatResult(r: ImportResult): string {
   const lines: string[] = [];
-  lines.push(`Found ${r.filesFound} MP3 file${r.filesFound === 1 ? "" : "s"} (${formatBytes(r.totalBytes)}) in ${r.root}`);
+  lines.push(`Found ${r.filesFound} audio file${r.filesFound === 1 ? "" : "s"} (${formatBytes(r.totalBytes)}) in ${r.root}`);
 
   if (r.untagged.length > 0) {
     lines.push(`  ${r.untagged.length} missing tags: names guessed from folders and marked "Untagged"`);
@@ -50,6 +52,11 @@ export function formatResult(r: ImportResult): string {
     if (r.added === 0 && r.failures.length === 0) lines.push("Nothing new to import.");
     else lines.push(`Added ${r.added} track${r.added === 1 ? "" : "s"}.`);
     if (r.alreadyInLibrary > 0) lines.push(`${r.alreadyInLibrary} already in your library.`);
+  }
+
+  if (r.skipped.length > 0) {
+    lines.push("", `${r.skipped.length} file${r.skipped.length === 1 ? "" : "s"} skipped (not supported):`);
+    lines.push(...list(r.skipped.map((f) => `${f.file}: ${f.reason}`), 20));
   }
 
   if (r.failures.length > 0) {

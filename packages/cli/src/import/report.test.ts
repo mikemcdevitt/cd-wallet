@@ -3,7 +3,7 @@ import { formatBytes, formatResult, type ImportResult } from "./report";
 
 const base: ImportResult = {
   dryRun: false, root: "/m/Music", filesFound: 3, totalBytes: 3 * 1024 * 1024, untagged: [],
-  artSkipped: 0, duplicatesInFolder: 0, alreadyInLibrary: 0, added: 3, failures: [],
+  artSkipped: 0, duplicatesInFolder: 0, alreadyInLibrary: 0, added: 3, skipped: [], failures: [],
 };
 
 describe("formatBytes", () => {
@@ -17,7 +17,7 @@ describe("formatBytes", () => {
 describe("formatResult", () => {
   it("summarises a successful import", () => {
     const text = formatResult(base);
-    expect(text).toContain("Found 3 MP3 files (3.0 MB) in /m/Music");
+    expect(text).toContain("Found 3 audio files (3.0 MB) in /m/Music");
     expect(text).toContain("Added 3 tracks.");
   });
 
@@ -41,6 +41,16 @@ describe("formatResult", () => {
     expect(text).toContain("1 file could not be imported:");
     expect(text).toContain("bad.mp3: the file is empty");
     expect(text).toContain("Run the same command again");
+  });
+
+  it("lists unsupported files as skipped, without telling the user to retry them", () => {
+    const text = formatResult({
+      ...base,
+      skipped: [{ file: "Bought/01 Song.m4p", reason: "it is copy-protected (DRM) and cannot be played outside Apple apps" }],
+    });
+    expect(text).toContain("1 file skipped (not supported):");
+    expect(text).toContain("Bought/01 Song.m4p: it is copy-protected (DRM)");
+    expect(text).not.toContain("Run the same command again");
   });
 
   it("mentions duplicates and skipped art", () => {

@@ -16,7 +16,8 @@ export interface ImportOptions {
 
 export const IMPORT_HELP = `Usage: cdwallet import <folder> [options]
 
-Uploads the MP3s in <folder> (including subfolders) to your library.
+Uploads the MP3 and M4A (AAC) files in <folder> (including subfolders) to your library.
+Copy-protected (.m4p) and Apple Lossless files are skipped and listed at the end.
 Safe to run again: files already in your library are skipped.
 
 Options:
