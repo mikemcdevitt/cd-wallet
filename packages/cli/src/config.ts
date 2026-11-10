@@ -1,4 +1,4 @@
-import { chmod, mkdir, readFile, rename, writeFile } from "node:fs/promises";
+import { chmod, mkdir, readdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
 import { CliError } from "./errors";
@@ -65,4 +65,24 @@ export async function saveConfig(config: DeploymentConfig, dir: string): Promise
   await chmod(tmp, 0o600);
   await rename(tmp, file);
   return file;
+}
+
+/** Names of the deployments saved in `dir`, sorted. */
+export async function listConfigNames(dir: string): Promise<string[]> {
+  let files: string[];
+  try {
+    files = await readdir(dir);
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code === "ENOENT") return [];
+    throw err;
+  }
+  return files
+    .filter((f) => f.endsWith(".json"))
+    .map((f) => f.slice(0, -".json".length))
+    .filter((n) => NAME.test(n))
+    .sort();
+}
+
+export async function removeConfig(name: string, dir: string): Promise<void> {
+  await rm(configPath(name, dir), { force: true });
 }

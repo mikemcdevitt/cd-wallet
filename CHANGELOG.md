@@ -6,6 +6,7 @@ All notable changes to CD Wallet are listed here. The format follows [Keep a Cha
 
 ### Added
 
+- CLI `destroy` command: removes the stack and keeps your bucket and database by default; `--delete-data` also deletes every song, the database and the saved settings, after you type the bucket name. `--dry-run` shows what would be removed (and how many files the bucket holds) without changing anything.
 - App: Shuffle (all songs or search results from the library, or one album), an "Up next" list in the player, and song/album/artist counts with a sync indicator in the library.
 - Open-source licenses screen in the app (Settings), generated from the dependency tree, with a CI check that keeps it current.
 - `pnpm dev:api`: a throwaway local server with sample tracks (real API code, fake S3 with range requests) for trying the app without AWS. `CDWALLET_ALLOW_HTTP=1` builds allow its plain-http address.
@@ -20,6 +21,7 @@ All notable changes to CD Wallet are listed here. The format follows [Keep a Cha
 
 ### Changed
 
+- CLI commands (`import`, `pair`, `devices`, `reset-token`, `destroy`) use your only saved deployment when you do not pass `--name` and no "default" exists. The hint printed after `deploy` now shows the exact `import` command.
 - Tapping the progress bar in the player now seeks on Android.
 - The app no longer requests microphone permission (the camera library asked for it by default).
 - README cost section now shows annual averages instead of first-month cost.
@@ -28,4 +30,4 @@ All notable changes to CD Wallet are listed here. The format follows [Keep a Cha
 
 - Nothing has run against a real AWS account yet; signed uploads, DynamoDB transactions and the budget resource are tested only with in-memory fakes.
 - Non-JPEG cover art is skipped.
-- `cdwallet destroy` is not implemented.
+- `cdwallet destroy --delete-data` leaves the Lambda's CloudWatch log group (it prints the command to remove it).

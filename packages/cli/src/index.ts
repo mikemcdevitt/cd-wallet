@@ -1,5 +1,6 @@
 import { describeError } from "./errors";
 import { runDeploy } from "./deploy";
+import { runDestroy } from "./destroy";
 import { runDevices } from "./devices";
 import { runPair } from "./pair";
 import { runResetToken } from "./reset-token";
@@ -11,7 +12,7 @@ const COMMANDS: Record<string, string> = {
   pair: "Print a QR code to pair the Android app",
   devices: "List or revoke paired phones",
   "reset-token": "Replace the admin token",
-  destroy: "Remove the stack (your bucket is kept unless you say otherwise)",
+  destroy: "Remove the stack (your music and library are kept unless you pass --delete-data)",
 };
 
 function usage(): void {
@@ -34,6 +35,8 @@ async function main(argv: string[]): Promise<void> {
     await runDevices(rest);
   } else if (command === "reset-token") {
     await runResetToken(rest);
+  } else if (command === "destroy") {
+    await runDestroy(rest);
   } else if (command === "import") {
     const result = await runImport(rest);
     if (result.failures.length > 0) process.exitCode = 1;

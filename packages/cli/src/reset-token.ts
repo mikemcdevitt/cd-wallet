@@ -1,8 +1,9 @@
 import { parseArgs } from "node:util";
 import { replaceAdminTokenHash, resolveTarget, stackOutputs, type Target } from "./aws";
 import { STACK_NAME, parseStackOutputs, type StackOutputs } from "./cdk";
-import { configDir, loadConfig, saveConfig, validateName, type DeploymentConfig } from "./config";
+import { configDir, loadConfig, saveConfig, type DeploymentConfig } from "./config";
 import { CliError } from "./errors";
+import { resolveDeploymentName } from "./deployment";
 import { DEFAULT_BUDGET_USD } from "./options";
 import { confirm, isInteractive } from "./prompt";
 import { generateAdminToken, hashToken } from "./tokens";
@@ -71,8 +72,8 @@ export async function runResetToken(argv: string[]): Promise<void> {
     return;
   }
 
-  const name = validateName(values.name ?? process.env.CDWALLET_NAME ?? "default");
   const dir = configDir();
+  const name = await resolveDeploymentName(values.name, process.env, dir);
   const saved = await loadConfig(name, dir);
 
   console.log("Checking your AWS credentials...");

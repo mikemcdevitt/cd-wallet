@@ -1,6 +1,7 @@
 import { stat } from "node:fs/promises";
 import * as path from "node:path";
 import { configDir, loadConfig } from "../config";
+import { resolveDeploymentName } from "../deployment";
 import { CliError } from "../errors";
 import { ApiClient, putBody } from "./api-client";
 import { loadCoverJpeg, readTrack, type ScannedTrack } from "./metadata";
@@ -60,9 +61,11 @@ export async function runImport(argv: string[], io: ImportIo = {}): Promise<Impo
   }
 
   // Load the deployment first so a missing deploy fails before a long scan.
-  const config = options.dryRun ? undefined : await loadConfig(options.name, configDir(env));
+  const dir = configDir(env);
+  const name = options.dryRun || options.nameExplicit ? options.name : await resolveDeploymentName(undefined, env, dir);
+  const config = options.dryRun ? undefined : await loadConfig(name, dir);
   if (!options.dryRun && !config) {
-    throw new CliError(`No saved deployment named "${options.name}". Run \`cdwallet deploy\` first.`);
+    throw new CliError(`No saved deployment named "${name}". Run \`cdwallet deploy\` first.`);
   }
 
   const files = await findMp3s(root);
