@@ -6,6 +6,7 @@ All notable changes to CD Wallet are listed here. The format follows [Keep a Cha
 
 ### Added
 
+- App icon (adaptive and Android 13 themed versions), website favicon and social preview image, with their sources in `design/`.
 - Release pipeline: pushing a `v*` tag builds a signed Android APK in GitHub Actions and publishes it with a checksum and the signing certificate fingerprint. Setup is in `RELEASING.md`.
 - M4A (AAC) support. `import` now uploads `.m4a` files as they are (no conversion) next to MP3s, reads their MP4 tags and cover art, and lists copy-protected `.m4p` and Apple Lossless files as skipped. Tracks carry an optional `container` (`mp3` or `m4a`, missing means MP3), so existing libraries need no migration. An M4A import against a deployment that predates this change stops with a message to run `cdwallet deploy` first. Tested on a phone against a sandbox deployment: M4A imports, cover art, and foreground and background playback all work.
 - CLI `destroy` command: removes the stack and keeps your bucket and database by default; `--delete-data` also deletes every song, the database and the saved settings, after you type the bucket name. `--dry-run` shows what would be removed (and how many files the bucket holds) without changing anything.
