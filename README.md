@@ -64,7 +64,7 @@ The project collects nothing: no accounts, analytics or telemetry. The phone and
 - Basic player: play/pause, seek, next/previous, background playback with lock-screen controls
 - One owner per deployment
 
-Later ideas include iOS, more formats, offline playback, Android Auto, playlists, a web or phone uploader, and a Subsonic-compatible API.
+Later ideas include iOS, more formats (FLAC, Apple Lossless), offline playback, Android Auto, playlists, a web or phone uploader, and a Subsonic-compatible API.
 
 ## Non-goals
 
