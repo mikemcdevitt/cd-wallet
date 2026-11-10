@@ -4,7 +4,7 @@
 
 CD Wallet is a self-hosted music archive. You deploy it into your own AWS account, upload the MP3 and M4A files you own from the command line, and stream them on your Android phone. Nobody else hosts your files, and you pay only for the storage you use.
 
-> **Status:** early development, not ready to install. The API, CLI (deploy, import, pair, devices) and Android app are written and tested locally, but have not yet been run against a real AWS account or on a phone. Watch the repo or open an issue to follow along.
+> **Status:** early release (v0.1.0). It has been deployed to real AWS accounts and used on an Android phone, but only by its author, so expect rough edges. If something doesn't work, please open an issue.
 
 ## How it works
 
@@ -14,7 +14,7 @@ CD Wallet is a self-hosted music archive. You deploy it into your own AWS accoun
 
 Audio never passes through the API. The CLI and the phone talk to S3 directly using short-lived signed URLs.
 
-## Quick start (once released)
+## Quick start
 
 ```sh
 git clone https://github.com/mikemcdevitt/cd-wallet.git
@@ -26,7 +26,24 @@ pnpm cdwallet import ~/Music   # uploads your MP3s and M4As (safe to re-run)
 pnpm cdwallet pair             # prints a QR code; scan it in the app
 ```
 
-You'll need an AWS account, Node.js 22, pnpm, and local AWS credentials. The Android app will be published as an APK on GitHub releases.
+You'll need an AWS account, Node.js 22, pnpm, and local AWS credentials. Install the app first (next section) so you can scan the code.
+
+## Install the Android app
+
+The app is published as an APK on the [releases page](https://github.com/mikemcdevitt/cd-wallet/releases/latest).
+
+1. On your phone, download `cd-wallet-<version>.apk` from the latest release.
+2. Open the file. Android asks you to allow installs from your browser or files app; allow it for this install.
+3. Optionally check the download against the `.sha256` file on the release (`sha256sum -c cd-wallet-<version>.apk.sha256`). The release notes also list the signing certificate's fingerprint, which stays the same for every release. If it ever changes, don't install.
+4. Open the app and scan the QR code from `pnpm cdwallet pair`.
+
+To update, install the newer APK over the old one. Your pairing and library are kept.
+
+Android is introducing developer verification for apps installed outside the Play Store (from September 2026 in a few countries, worldwide in 2027). Installing an APK directly remains supported, but how it works may change, and this section will be kept current.
+
+## Removing it
+
+`pnpm cdwallet destroy` removes the API and Lambda but keeps your music and library, and `pnpm cdwallet deploy` brings the app back with the same data. `pnpm cdwallet destroy --delete-data` deletes everything: every song, the database, and the saved settings. It asks you to type the bucket name first, and `--dry-run` shows what would be removed without changing anything.
 
 ## What it costs
 

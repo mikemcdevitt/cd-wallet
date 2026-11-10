@@ -1,8 +1,12 @@
 # Changelog
 
-All notable changes to CD Wallet are listed here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). There are no tagged releases yet.
+All notable changes to CD Wallet are listed here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
+
+## [0.1.0] - 2026-11-10
+
+First release.
 
 ### Added
 
@@ -13,7 +17,7 @@ All notable changes to CD Wallet are listed here. The format follows [Keep a Cha
 - App: Shuffle (all songs or search results from the library, or one album), an "Up next" list in the player, and song/album/artist counts with a sync indicator in the library.
 - Open-source licenses screen in the app (Settings), generated from the dependency tree, with a CI check that keeps it current.
 - `pnpm dev:api`: a throwaway local server with sample tracks (real API code, fake S3 with range requests) for trying the app without AWS. `CDWALLET_ALLOW_HTTP=1` builds allow its plain-http address.
-- **Android app** (Expo SDK 58): pair by QR code, link or typed code; Songs, Albums and Artists views with search; local SQLite library index synced incrementally; streaming playback with background play and notification/lock-screen controls; cover art cache; unpair from Settings. Tested on a phone against the local dev server, not yet against real AWS.
+- **Android app** (Expo SDK 58): pair by QR code, link or typed code; Songs, Albums and Artists views with search; local SQLite library index synced incrementally; streaming playback with background play and notification/lock-screen controls; cover art cache; unpair from Settings. Tested on a phone against the local dev server and against real AWS deployments.
 - CI step that checks the Android JavaScript bundle builds.
 - `SECURITY.md`, `PRIVACY.md` and `THIRD_PARTY_NOTICES.md`; "Your responsibilities" and "Privacy and security" sections in the README.
 - Stream URLs, cover art, and device pairing in the API: `POST /stream-urls`, `GET /art/{hash}`, `POST /pairing`, `POST /pairing/claim`, `GET /devices`, `DELETE /devices/{id}`.
@@ -31,6 +35,8 @@ All notable changes to CD Wallet are listed here. The format follows [Keep a Cha
 
 ### Known limitations
 
-- Nothing has run against a real AWS account yet; signed uploads, DynamoDB transactions and the budget resource are tested only with in-memory fakes.
+- Tested by one person, on real AWS accounts and one Android phone. Expect rough edges.
+- Android only, and distributed as a signed APK, not through the Play Store. Google's developer verification for apps outside the Play Store starts in September 2026 in a few countries and expands worldwide in 2027; direct installs remain supported, but the rules may change.
+- A signed stream link that expires during a long pause is not re-signed, so playback after a long pause may fail until you skip to another track.
 - Non-JPEG cover art is skipped.
 - `cdwallet destroy --delete-data` leaves the Lambda's CloudWatch log group (it prints the command to remove it).
