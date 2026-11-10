@@ -2,13 +2,13 @@
 
 **Your music collection, in your own cloud.**
 
-CD Wallet is a self-hosted music archive. You deploy it into your own AWS account, upload the MP3s you own from the command line, and stream them on your Android phone. Nobody else hosts your files, and you pay only for the storage you use.
+CD Wallet is a self-hosted music archive. You deploy it into your own AWS account, upload the MP3 and M4A files you own from the command line, and stream them on your Android phone. Nobody else hosts your files, and you pay only for the storage you use.
 
 > **Status:** early development, not ready to install. The API, CLI (deploy, import, pair, devices) and Android app are written and tested locally, but have not yet been run against a real AWS account or on a phone. Watch the repo or open an issue to follow along.
 
 ## How it works
 
-- **Your AWS account:** a private S3 bucket holds your MP3s and cover art; DynamoDB holds the library index; a small API (API Gateway + Lambda) ties it together. Everything is deployed with AWS CDK.
+- **Your AWS account:** a private S3 bucket holds your music files and cover art; DynamoDB holds the library index; a small API (API Gateway + Lambda) ties it together. Everything is deployed with AWS CDK.
 - **The `cdwallet` CLI:** deploys the stack, imports your music, and pairs your phone.
 - **The Android app:** syncs your library index, lets you browse and search instantly, and streams straight from your bucket. See [apps/android](apps/android/README.md).
 
@@ -22,7 +22,7 @@ cd cd-wallet
 pnpm install
 
 pnpm cdwallet deploy           # creates the stack in your AWS account
-pnpm cdwallet import ~/Music   # uploads your MP3s (safe to re-run)
+pnpm cdwallet import ~/Music   # uploads your MP3s and M4As (safe to re-run)
 pnpm cdwallet pair             # prints a QR code; scan it in the app
 ```
 
@@ -58,12 +58,13 @@ The project collects nothing: no accounts, analytics or telemetry. The phone and
 
 ## Version 1 scope
 
-- MP3 only, tags read from ID3 with folder names as a fallback
+- MP3 and M4A (AAC), stored exactly as you have them, never converted; tags read from ID3 or MP4 atoms with folder names as a fallback
+- Not imported (listed when you run `import`): copy-protected `.m4p` files from old iTunes Store purchases, and Apple Lossless (ALAC) files, which are also named `.m4a`
 - Android only
 - Basic player: play/pause, seek, next/previous, background playback with lock-screen controls
 - One owner per deployment
 
-Later ideas include iOS, more formats, offline playback, Android Auto, playlists, a web or phone uploader, and a Subsonic-compatible API.
+Later ideas include iOS, more formats (FLAC, Apple Lossless), offline playback, Android Auto, playlists, a web or phone uploader, and a Subsonic-compatible API.
 
 ## Non-goals
 

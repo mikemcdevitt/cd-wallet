@@ -8,7 +8,7 @@ import { runImport } from "./import/run";
 
 const COMMANDS: Record<string, string> = {
   deploy: "Create or update the CD Wallet stack in your AWS account",
-  import: "Upload MP3s from a folder (safe to re-run; --dry-run to preview)",
+  import: "Upload MP3 and M4A files from a folder (safe to re-run; --dry-run to preview)",
   pair: "Print a QR code to pair the Android app",
   devices: "List or revoke paired phones",
   "reset-token": "Replace the admin token",

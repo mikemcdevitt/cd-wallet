@@ -60,7 +60,7 @@ export async function startLocalApi(adminToken: string, options: LocalApiOptions
           res.writeHead(404).end();
           return;
         }
-        const type = url.pathname.endsWith(".jpg") ? "image/jpeg" : "audio/mpeg";
+        const type = url.pathname.endsWith(".jpg") ? "image/jpeg" : url.pathname.endsWith(".m4a") ? "audio/mp4" : "audio/mpeg";
         const range = /^bytes=(\d*)-(\d*)$/.exec(req.headers.range ?? "");
         if (range) {
           const start = range[1] ? Number(range[1]) : Math.max(0, data.length - Number(range[2]));

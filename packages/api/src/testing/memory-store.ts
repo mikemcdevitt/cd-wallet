@@ -15,6 +15,7 @@ export class MemoryStore implements Store {
   private adminTokenHash: string | undefined;
   private version = 0;
   private readonly tracks = new Map<string, StoredTrack>();
+  private readonly audioKeys = new Map<string, string>();
   private readonly devices = new Map<string, DeviceRecord>();
   private readonly pairings = new Map<string, PairingRecord>();
 
@@ -47,6 +48,15 @@ export class MemoryStore implements Store {
     return new Set(hashes.filter((h) => this.tracks.get(h) && !this.tracks.get(h)?.deletedAt));
   }
 
+  async findLiveAudioKeys(hashes: string[]): Promise<Map<string, string>> {
+    const live = new Map<string, string>();
+    for (const hash of hashes) {
+      const key = this.audioKeys.get(hash);
+      if (key !== undefined && this.tracks.get(hash) && !this.tracks.get(hash)?.deletedAt) live.set(hash, key);
+    }
+    return live;
+  }
+
   async addTrack(write: TrackWrite): Promise<AddResult> {
     const existing = this.tracks.get(write.meta.hash);
     if (existing && !existing.deletedAt) {
@@ -59,6 +69,7 @@ export class MemoryStore implements Store {
       version: ++this.version,
     };
     this.tracks.set(stored.hash, stored);
+    this.audioKeys.set(stored.hash, write.audioKey);
     return { track: stored, created: true, libraryVersion: this.version };
   }
 

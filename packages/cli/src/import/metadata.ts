@@ -1,6 +1,6 @@
 import { stat } from "node:fs/promises";
 import * as path from "node:path";
-import { API_LIMITS, guessFromPath, type TrackMetadata } from "@cdwallet/shared";
+import { API_LIMITS, guessFromPath, type AudioContainer, type TrackMetadata } from "@cdwallet/shared";
 import { parseFile, type IAudioMetadata } from "music-metadata";
 import { sha256Buffer, sha256File } from "./hash";
 
@@ -13,7 +13,39 @@ export interface ScannedTrack {
   artSkipped: boolean;
 }
 
+/** A file that is valid but that CD Wallet cannot store or play. Reported as skipped, not as a failure to retry. */
+export class UnsupportedAudioError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "UnsupportedAudioError";
+  }
+}
+
 const MAX_TEXT = 500;
+
+const DRM_MESSAGE = "it is copy-protected (DRM) and cannot be played outside Apple apps";
+
+/** MP4-family container names music-metadata reports, e.g. "M4A/mp42/isom". */
+const MP4_FAMILY = /(^|\/)(M4A|M4B|mp41|mp42|isom)(\/|$)/i;
+
+/**
+ * Works out the format from what is inside the file, not its name, and rejects what we cannot play:
+ * Apple Lossless, and copy-protected (FairPlay) iTunes purchases, which have no readable codec.
+ */
+function audioContainer(parsed: IAudioMetadata, filePath: string): AudioContainer {
+  const { container, codec } = parsed.format;
+  if (container === "MPEG") return "mp3";
+  if (container && MP4_FAMILY.test(container)) {
+    if (codec === "MPEG-4/AAC") return "m4a";
+    if (codec === "ALAC") throw new UnsupportedAudioError("Apple Lossless (ALAC) is not supported yet");
+    throw new UnsupportedAudioError(
+      /\.m4p$/i.test(filePath) || !codec
+        ? DRM_MESSAGE
+        : `the audio format (${codec}) is not supported`,
+    );
+  }
+  throw new Error("it is not an MP3 or M4A file");
+}
 
 function clean(value: string | undefined): string | undefined {
   const trimmed = value?.replace(/\0/g, "").trim();
@@ -46,10 +78,11 @@ export async function readTrack(filePath: string, root: string): Promise<Scanned
   const [hash, parsed] = await Promise.all([
     sha256File(filePath),
     parseFile(filePath, { duration: true }).catch((err: unknown) => {
-      throw new Error(`could not read it as an MP3 (${(err as Error).message})`);
+      if (/\.m4p$/i.test(filePath)) throw new UnsupportedAudioError(DRM_MESSAGE);
+      throw new Error(`could not read it as audio (${(err as Error).message})`);
     }),
   ]);
-  if (parsed.format.container !== "MPEG") throw new Error("it is not an MP3 file");
+  const container = audioContainer(parsed, filePath);
 
   const originalPath = displayPath(filePath, root);
   const guess = guessFromPath(originalPath);
@@ -70,6 +103,7 @@ export async function readTrack(filePath: string, root: string): Promise<Scanned
     album: album ?? guess.album,
     durationSec: Math.min(Math.max(format.duration ?? 0, 0), 24 * 3600),
     sizeBytes: info.size,
+    ...(container === "mp3" ? {} : { container }),
     metaSource: untagged ? "folder" : "tags",
     originalPath: originalPath.slice(-2000),
   };

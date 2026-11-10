@@ -1,5 +1,8 @@
 import {
   API_LIMITS,
+  AUDIO_CONTAINERS,
+  isAudioContainer,
+  type AudioContainer,
   type AddTrackRequest,
   type CheckTracksRequest,
   type CreatePairingRequest,
@@ -66,12 +69,20 @@ export function parseCheckTracks(body: unknown): CheckTracksRequest {
   return { hashes: hashes.map((h) => hashField(h, "hashes[]")) };
 }
 
+function optContainer(o: Obj): AudioContainer | undefined {
+  if (o.container === undefined) return undefined;
+  if (!isAudioContainer(o.container)) return bad(`container must be one of: ${Object.keys(AUDIO_CONTAINERS).join(", ")}`);
+  return o.container;
+}
+
 export function parseCreateUpload(body: unknown): CreateUploadRequest {
   const o = asObject(body);
   const request: CreateUploadRequest = {
     hash: hashField(o.hash, "hash"),
     sizeBytes: num(o, "sizeBytes", 1, MAX_AUDIO_BYTES, true),
   };
+  const container = optContainer(o);
+  if (container !== undefined) request.container = container;
   if (o.artHash !== undefined) request.artHash = hashField(o.artHash, "artHash");
   return request;
 }
@@ -106,6 +117,8 @@ export function parseAddTrack(body: unknown): AddTrackRequest {
   if (discNo !== undefined) track.discNo = discNo;
   if (year !== undefined) track.year = year;
   if (bitrate !== undefined) track.bitrate = bitrate;
+  const container = optContainer(o);
+  if (container !== undefined) track.container = container;
   if (o.artHash !== undefined) track.artHash = hashField(o.artHash, "artHash");
   return track;
 }

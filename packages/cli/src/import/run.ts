@@ -4,11 +4,11 @@ import { configDir, loadConfig } from "../config";
 import { resolveDeploymentName } from "../deployment";
 import { CliError } from "../errors";
 import { ApiClient, putBody } from "./api-client";
-import { loadCoverJpeg, readTrack, type ScannedTrack } from "./metadata";
+import { loadCoverJpeg, readTrack, UnsupportedAudioError, type ScannedTrack } from "./metadata";
 import { IMPORT_HELP, parseImportArgs } from "./options";
 import { mapPool } from "./pool";
 import { formatResult, type Failure, type ImportResult } from "./report";
-import { findMp3s } from "./scan";
+import { findAudioFiles } from "./scan";
 
 export interface ImportIo {
   env?: NodeJS.ProcessEnv;
@@ -27,19 +27,21 @@ function progressReporter(enabled: boolean) {
 async function scanFolder(root: string, files: string[], concurrency: number, report: (done: number) => void) {
   const tracks: ScannedTrack[] = [];
   const failures: Failure[] = [];
+  const skipped: Failure[] = [];
   let done = 0;
   await mapPool(files, concurrency, async (file) => {
     try {
       tracks.push(await readTrack(file, root));
     } catch (err) {
-      failures.push({ file: path.relative(root, file), reason: (err as Error).message });
+      const problem = { file: path.relative(root, file), reason: (err as Error).message };
+      (err instanceof UnsupportedAudioError ? skipped : failures).push(problem);
     }
     report(++done);
   });
   // Work finished in any order; restore the folder order.
   const order = new Map(files.map((f, i) => [f, i]));
   tracks.sort((a, b) => (order.get(a.filePath) ?? 0) - (order.get(b.filePath) ?? 0));
-  return { tracks, failures };
+  return { tracks, failures, skipped };
 }
 
 export async function runImport(argv: string[], io: ImportIo = {}): Promise<ImportResult> {
@@ -68,7 +70,7 @@ export async function runImport(argv: string[], io: ImportIo = {}): Promise<Impo
     throw new CliError(`No saved deployment named "${name}". Run \`cdwallet deploy\` first.`);
   }
 
-  const files = await findMp3s(root);
+  const files = await findAudioFiles(root);
   const scan = await scanFolder(root, files, options.concurrency, (done) => progress("Reading files", done, files.length));
 
   // Identical audio files (same hash) are imported once.
@@ -90,6 +92,7 @@ export async function runImport(argv: string[], io: ImportIo = {}): Promise<Impo
     duplicatesInFolder: scan.tracks.length - unique.length,
     alreadyInLibrary: 0,
     added: 0,
+    skipped: [...scan.skipped],
     failures: [...scan.failures],
   };
 
@@ -103,11 +106,17 @@ export async function runImport(argv: string[], io: ImportIo = {}): Promise<Impo
     await mapPool(todo, options.concurrency, async (track) => {
       const { metadata, filePath } = track;
       try {
+        const container = metadata.container ?? "mp3";
         const upload = await client.createUpload({
           hash: metadata.hash,
           sizeBytes: metadata.sizeBytes,
+          ...(container === "mp3" ? {} : { container }),
           ...(metadata.artHash ? { artHash: metadata.artHash } : {}),
         });
+        // A server from before M4A support ignores "container" and would file the upload as an MP3.
+        if (container !== "mp3" && upload.container !== container) {
+          throw new CliError("Your deployment is older than this CLI and cannot store M4A files yet. Run `cdwallet deploy` to update it, then import again.");
+        }
         await putBody(upload.audio.url, upload.audio.headers ?? {}, { kind: "file", path: filePath, size: metadata.sizeBytes });
         if (upload.art && metadata.artHash) {
           const cover = await loadCoverJpeg(filePath, metadata.artHash);
@@ -131,6 +140,6 @@ export async function runImport(argv: string[], io: ImportIo = {}): Promise<Impo
 function emptyResult(dryRun: boolean, root: string): ImportResult {
   return {
     dryRun, root, filesFound: 0, totalBytes: 0, untagged: [], artSkipped: 0,
-    duplicatesInFolder: 0, alreadyInLibrary: 0, added: 0, failures: [],
+    duplicatesInFolder: 0, alreadyInLibrary: 0, added: 0, skipped: [], failures: [],
   };
 }

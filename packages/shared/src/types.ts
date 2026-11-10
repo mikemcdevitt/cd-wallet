@@ -1,3 +1,5 @@
+import type { AudioContainer } from "./audio";
+
 /** How a track's metadata was obtained at import time. */
 export type MetaSource = "tags" | "folder";
 
@@ -16,6 +18,8 @@ export interface TrackMetadata {
   durationSec: number;
   bitrate?: number;
   sizeBytes: number;
+  /** File format. Missing means MP3, which is all that older versions of the app stored. */
+  container?: AudioContainer;
   /** SHA-256 of the extracted cover art, if the file had any. */
   artHash?: string;
   metaSource: MetaSource;

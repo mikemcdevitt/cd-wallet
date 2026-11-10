@@ -1,5 +1,6 @@
 import {
   API_LIMITS,
+  AUDIO_CONTAINERS,
   formatPairingCode,
   isPairingCode,
   normalizePairingCode,
@@ -161,17 +162,19 @@ async function checkTracks(req: HttpRequest, deps: Deps): Promise<HttpResponse> 
 }
 
 async function createUpload(req: HttpRequest, deps: Deps): Promise<HttpResponse> {
-  const { hash, sizeBytes, artHash } = parseCreateUpload(parseJson(req.body));
+  const { hash, sizeBytes, artHash, container = "mp3" } = parseCreateUpload(parseJson(req.body));
   const expiresInSeconds = UPLOAD_URL_TTL_SECONDS;
+  const contentType = AUDIO_CONTAINERS[container].contentType;
 
   const audioUrl = await deps.storage.presignPut({
-    key: audioKey(hash),
-    contentType: "audio/mpeg",
+    key: audioKey(hash, container),
+    contentType,
     contentLength: sizeBytes,
     expiresInSeconds,
   });
   const body: CreateUploadResponse = {
-    audio: { url: audioUrl, headers: { "content-type": "audio/mpeg" } },
+    container,
+    audio: { url: audioUrl, headers: { "content-type": contentType } },
     expiresAt: inSeconds(deps, expiresInSeconds),
   };
 
@@ -189,7 +192,8 @@ async function createUpload(req: HttpRequest, deps: Deps): Promise<HttpResponse>
 async function addTrack(req: HttpRequest, deps: Deps): Promise<HttpResponse> {
   const meta = parseAddTrack(parseJson(req.body));
 
-  if (!(await deps.storage.objectExists(audioKey(meta.hash)))) {
+  const key = audioKey(meta.hash, meta.container);
+  if (!(await deps.storage.objectExists(key))) {
     throw new HttpError(409, "audio_not_uploaded", "Upload the audio file before adding the track");
   }
   if (meta.artHash && !(await deps.storage.objectExists(artKey(meta.artHash)))) {
@@ -198,7 +202,7 @@ async function addTrack(req: HttpRequest, deps: Deps): Promise<HttpResponse> {
 
   const write = {
     meta,
-    audioKey: audioKey(meta.hash),
+    audioKey: key,
     now: deps.now().toISOString(),
     ...(meta.artHash ? { artKey: artKey(meta.artHash) } : {}),
   };
@@ -225,14 +229,17 @@ async function library(req: HttpRequest, deps: Deps): Promise<HttpResponse> {
 /** Short-lived download links for playing. Tracks that are unknown or deleted are left out. */
 async function streamUrls(req: HttpRequest, deps: Deps): Promise<HttpResponse> {
   const { trackIds } = parseStreamUrls(parseJson(req.body));
-  const live = await deps.store.findLiveHashes(trackIds);
+  const liveKeys = await deps.store.findLiveAudioKeys(trackIds);
   const ttl = API_LIMITS.streamUrlTtlSeconds;
   const expiresAt = inSeconds(deps, ttl);
 
   const urls = await Promise.all(
     [...new Set(trackIds)]
-      .filter((id) => live.has(id))
-      .map(async (trackId) => ({ trackId, url: await deps.storage.presignGet(audioKey(trackId), ttl), expiresAt })),
+      .flatMap((trackId) => {
+        const key = liveKeys.get(trackId);
+        return key === undefined ? [] : [{ trackId, key }];
+      })
+      .map(async ({ trackId, key }) => ({ trackId, url: await deps.storage.presignGet(key, ttl), expiresAt })),
   );
   const body: StreamUrlsResponse = { urls };
   return json(200, body);

@@ -11,7 +11,7 @@ The architecture is still settling, so for the moment we're accepting **issues a
 CD Wallet is a self-hosted archive for music you own: one owner, one AWS account, one deployment. Good areas to contribute later:
 
 - iOS support
-- More audio formats (FLAC, AAC/M4A)
+- More audio formats (FLAC, Apple Lossless)
 - Offline playback
 - A web or phone uploader
 - A Subsonic-compatible API

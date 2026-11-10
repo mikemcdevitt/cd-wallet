@@ -61,6 +61,8 @@ export interface Store {
   getDevice(id: string): Promise<DeviceRecord | undefined>;
   /** Which of these hashes are in the library and not deleted. */
   findLiveHashes(hashes: string[]): Promise<Set<string>>;
+  /** Like findLiveHashes, but maps each live hash to the S3 key of its audio file. */
+  findLiveAudioKeys(hashes: string[]): Promise<Map<string, string>>;
   /** Idempotent by hash. A previously deleted track is brought back. */
   addTrack(write: TrackWrite): Promise<AddResult>;
   /** Tracks whose version is greater than `after`, oldest change first. */

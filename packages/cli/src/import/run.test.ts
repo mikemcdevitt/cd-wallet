@@ -4,6 +4,7 @@ import * as path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { saveConfig, type DeploymentConfig } from "../config";
 import { CliError } from "../errors";
+import { makeM4a } from "../testing/m4a";
 import { fakeJpeg, makeMp3 } from "../testing/mp3";
 import { startLocalApi, type LocalApi } from "../testing/local-api";
 import { runImport } from "./run";
@@ -75,6 +76,45 @@ describe("cdwallet import (end to end, against the real API handlers)", () => {
       ["Paranoid Android", "Radiohead", "OK Computer", "tags", 2],
     ]);
     expect(logged.join("\n")).toContain("Added 3 tracks.");
+  });
+
+  it("imports M4A files next to MP3s, stores them as m4a, and lists unsupported files as skipped", async () => {
+    const cover = fakeJpeg(7);
+    await put("Beck/Odelay/01 Devils Haircut.m4a", makeM4a({ title: "Devils Haircut", artist: "Beck", album: "Odelay", track: 1, cover, seed: 80 }));
+    await put("Beck/Odelay/02 Hotwax.m4a", makeM4a({ title: "Hotwax", artist: "Beck", album: "Odelay", track: 2, cover, seed: 81 }));
+    await put("Bought/Store/01 Protected.m4p", makeM4a({ codec: "drms", seed: 82 }));
+    await put("Bought/Store/02 Lossless.m4a", makeM4a({ codec: "alac", title: "L", artist: "A", album: "B", seed: 83 }));
+
+    const result = await runImport(["Music"], io());
+    expect(result).toMatchObject({ added: 5, duplicatesInFolder: 1 });
+    expect(result.skipped.map((s) => s.file).sort()).toEqual(["Music/Bought/Store/01 Protected.m4p", "Music/Bought/Store/02 Lossless.m4a"].map((f) => f.replace("Music/", "")));
+    expect(result.failures.map((f) => f.file)).toEqual(["broken.mp3"]);
+
+    const audio = [...api.objects.keys()].filter((k) => k.startsWith("audio/"));
+    expect(audio.filter((k) => k.endsWith(".m4a"))).toHaveLength(2);
+    expect(audio.filter((k) => k.endsWith(".mp3"))).toHaveLength(3);
+
+    const tracks = (await api.store.listChanges(0, 100)).tracks;
+    expect(tracks.filter((t) => t.container === "m4a").map((t) => t.title).sort()).toEqual(["Devils Haircut", "Hotwax"]);
+    expect(tracks.filter((t) => t.container === undefined)).toHaveLength(3);
+
+    const text = logged.join("\n");
+    expect(text).toContain("2 files skipped (not supported):");
+    expect(text).toContain("Added 5 tracks.");
+  });
+
+  it("tells the owner to redeploy when the server predates M4A support", async () => {
+    await put("Beck/Odelay/01 Devils Haircut.m4a", makeM4a({ title: "Devils Haircut", artist: "Beck", album: "Odelay", seed: 90 }));
+    // An older server ignores "container" and answers without it.
+    const realFetch = globalThis.fetch;
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
+      const res = await realFetch(input, init);
+      if (!String(input).endsWith("/uploads")) return res;
+      const { container: _container, ...old } = (await res.json()) as Record<string, unknown>;
+      return new Response(JSON.stringify(old), { status: res.status, headers: { "content-type": "application/json" } });
+    });
+    await expect(runImport(["Music"], io())).rejects.toThrow(/cdwallet deploy/);
+    vi.restoreAllMocks();
   });
 
   it("is safe to run again: nothing is uploaded twice", async () => {
