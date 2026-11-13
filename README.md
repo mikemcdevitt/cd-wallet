@@ -26,7 +26,7 @@ pnpm cdwallet import ~/Music   # uploads your MP3s and M4As (safe to re-run)
 pnpm cdwallet pair             # prints a QR code; scan it in the app
 ```
 
-You'll need an AWS account, Node.js 22, pnpm, and local AWS credentials. Install the app first (next section) so you can scan the code.
+You'll need an AWS account, Node.js 22, pnpm, and local AWS credentials. Install the app first (next section) so you can scan the code. New to AWS or the command line? [SETUP.md](SETUP.md) walks through every step on macOS and Windows.
 
 ## Install the Android app
 
