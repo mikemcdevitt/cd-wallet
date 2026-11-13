@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Set up CD Wallet on macOS or Windows</title>
+<meta name="description" content="Step-by-step setup for CD Wallet on macOS and Windows: create an AWS account, install the tools, deploy, import your music and pair your phone.">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="icon" href="favicon-32.png" sizes="32x32" type="image/png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Set up CD Wallet on macOS or Windows">
+<meta property="og:description" content="From a new AWS account to your music playing on your phone, step by step.">
+<meta property="og:url" content="https://cd-wallet.org/setup.html">
+<meta property="og:image" content="https://cd-wallet.org/social.png">
+<meta name="twitter:card" content="summary_large_image">
+<style>
+  :root { --bg: #ffffff; --fg: #1d2127; --muted: #5b6573; --line: #dde1e7; --accent: #1f5fbf; --code: #f3f5f8; --note: #fff7e0; --on-accent: #ffffff; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #14171b; --fg: #e6e9ee; --muted: #9aa4b2; --line: #2b323b; --accent: #7fb0ff; --code: #1d2228; --note: #2a2410; --on-accent: #14171b; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--fg); font: 17px/1.6 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  main { max-width: 42rem; margin: 0 auto; padding: 3rem 1rem 4rem; }
+  h1 { font-size: 2.2rem; line-height: 1.2; margin: 0 0 .25rem; }
+  h2 { font-size: 1.35rem; margin: 2.5rem 0 .5rem; }
+  h3 { font-size: 1.05rem; margin: 1.5rem 0 .25rem; }
+  .lead { font-size: 1.2rem; color: var(--muted); margin: 0 0 1.5rem; }
+  a { color: var(--accent); }
+  pre, code { background: var(--code); border-radius: 6px; font: 15px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+  code { padding: .1em .35em; overflow-wrap: anywhere; }
+  pre { padding: 1rem; overflow-x: auto; }
+  pre code { padding: 0; background: none; overflow-wrap: normal; }
+  table { border-collapse: collapse; width: 100%; }
+  th, td { text-align: left; padding: .4rem .6rem; border-bottom: 1px solid var(--line); vertical-align: top; }
+  .note { background: var(--note); border: 1px solid var(--line); border-radius: 8px; padding: .75rem 1rem; }
+  .tabs { display: none; gap: .5rem; margin: 1rem 0 0; }
+  .js .tabs { display: flex; }
+  .tabs button { font: inherit; padding: .4rem 1rem; border: 1px solid var(--line); border-radius: 999px; background: var(--bg); color: var(--fg); cursor: pointer; }
+  .tabs button[aria-pressed="true"] { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
+  [data-os="mac"] .win, [data-os="win"] .mac { display: none; }
+  .os-label { font-weight: 600; margin: 1rem 0 .25rem; }
+  [data-os] .os-label { display: none; }
+  footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--line); color: var(--muted); font-size: .95rem; }
+</style>
+<script>
+  (function () {
+    var d = document.documentElement;
+    d.className += " js";
+    var ua = (navigator.userAgentData && navigator.userAgentData.platform) || navigator.platform || "";
+    var os = /win/i.test(ua) ? "win" : "mac";
+    try { var saved = localStorage.getItem("cdwallet-os"); if (saved === "mac" || saved === "win") os = saved; } catch (e) {}
+    function set(v) {
+      d.setAttribute("data-os", v);
+      var b = document.querySelectorAll(".tabs button");
+      for (var i = 0; i < b.length; i++) b[i].setAttribute("aria-pressed", String(b[i].getAttribute("data-os") === v));
+      try { localStorage.setItem("cdwallet-os", v); } catch (e) {}
+    }
+    document.addEventListener("DOMContentLoaded", function () {
+      var b = document.querySelectorAll(".tabs button");
+      for (var i = 0; i < b.length; i++) b[i].addEventListener("click", function () { set(this.getAttribute("data-os")); });
+      set(os);
+    });
+  })();
+</script>
+</head>
+<body>
+<main>
+  <p><a href="./">&larr; CD Wallet</a></p>
+  <h1>Set up CD Wallet</h1>
+  <p class="lead">From a new AWS account to your music playing on your phone.</p>
+  <p>This guide is for macOS and Windows and assumes you have never used AWS or a command line for development before. If you already have some of these tools, skip those steps. You will end up with an AWS account of your own, four small tools installed (Node.js, pnpm, the AWS command line and, optionally, Git), CD Wallet deployed into your account, your music uploaded and your phone paired. Expect 30 to 45 minutes, plus upload time for your library. Everything can be removed again with <code>pnpm cdwallet destroy</code>.</p>
+
+  <div class="tabs" role="group" aria-label="Operating system">
+    <button type="button" data-os="mac" aria-pressed="false">macOS</button>
+    <button type="button" data-os="win" aria-pressed="false">Windows</button>
+  </div>
+
+  <p><strong>Where you type commands:</strong></p>
+  <ul>
+    <li class="mac">On macOS, open <strong>Terminal</strong> (press Cmd+Space and type "Terminal").</li>
+    <li class="win">On Windows, open <strong>PowerShell</strong> (press the Windows key and type "PowerShell").</li>
+  </ul>
+
+  <h2>1. Create your AWS account</h2>
+  <ol>
+    <li>Go to <a href="https://aws.amazon.com">aws.amazon.com</a> and choose <strong>Create an AWS account</strong>. You need an email address, a credit card and a phone number. The account is usually ready in minutes but can take up to a day.</li>
+    <li>Sign in to the <a href="https://console.aws.amazon.com">AWS console</a> with the email and password you chose. This is the <strong>root user</strong>. It can do anything, so you use it only to set up a safer sign-in, then put it away.</li>
+    <li>Turn on multi-factor authentication for the root user: open the account menu (your name, top right), choose <strong>Security credentials</strong>, then <strong>Assign MFA device</strong>, and follow the prompts with an authenticator app.</li>
+  </ol>
+
+  <h3>Create a sign-in for your computer</h3>
+  <p>Rather than create long-lived access keys that can leak, use AWS's browser sign-in (<code>aws login</code>), which gives your computer temporary credentials. It needs an <strong>IAM user</strong>:</p>
+  <ol>
+    <li>In the console, open <strong>IAM</strong>, then <strong>Users</strong>, then <strong>Create user</strong>. Use any name, such as <code>cdwallet-admin</code>. Keep "Provide user access to the AWS Management Console" ticked and set a password.</li>
+    <li>On the permissions step, choose <strong>Attach policies directly</strong> and tick both <code>AdministratorAccess</code> (CD Wallet's one-time setup creates roles and a storage bucket, so it needs broad rights) and <code>SignInLocalDevelopmentAccess</code> (lets this user use <code>aws login</code>).</li>
+    <li>Finish creating the user and note its <strong>console sign-in URL</strong>, which looks like <code>https://123456789012.signin.aws.amazon.com/console</code>.</li>
+    <li>Sign out of the root user, sign in at that URL as the new user, and turn on MFA for it too. From now on, use this user, not root.</li>
+  </ol>
+  <p class="note">Signing in as the root user with <code>aws login</code> also works and skips these steps, but it is not recommended: a mistake or a stolen session then has no limits.</p>
+
+  <h2>2. Install the tools</h2>
+  <p>You need <strong>Node.js 22 or newer</strong>, <strong>pnpm</strong> and the <strong>AWS CLI version 2.32 or newer</strong> (older versions do not have <code>aws login</code>). Git is optional.</p>
+
+  <div class="mac">
+    <p class="os-label">macOS</p>
+    <ol>
+      <li><strong>Node.js:</strong> download the LTS installer from <a href="https://nodejs.org">nodejs.org</a> and run it. Check it worked: <code>node --version</code> should print <code>v22</code> or higher.</li>
+      <li><strong>pnpm:</strong> run the line below, then <strong>close and reopen Terminal</strong> and check with <code>pnpm --version</code>.
+<pre><code>curl -fsSL https://get.pnpm.io/install.sh | sh -</code></pre></li>
+      <li><strong>AWS CLI:</strong> download the macOS graphical installer from the <a href="https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html">AWS install guide</a> and run it. Check with <code>aws --version</code>.</li>
+      <li><strong>Git (optional):</strong> run <code>git --version</code>. If Git is missing, macOS offers to install it. You can also skip Git and download a ZIP in the next step.</li>
+    </ol>
+  </div>
+
+  <div class="win">
+    <p class="os-label">Windows</p>
+    <ol>
+      <li><strong>Node.js:</strong> download the LTS installer from <a href="https://nodejs.org">nodejs.org</a> and run it, keeping the defaults. In a new PowerShell window, <code>node --version</code> should print <code>v22</code> or higher.</li>
+      <li><strong>pnpm:</strong> run the line below, then <strong>close and reopen PowerShell</strong> and check with <code>pnpm --version</code>. Use this installer rather than <code>npm install -g pnpm</code>; CD Wallet starts <code>pnpm</code> itself, and the standalone version works most reliably on Windows.
+<pre><code>iwr https://get.pnpm.io/install.ps1 -useb | iex</code></pre></li>
+      <li><strong>AWS CLI:</strong> download the 64-bit MSI installer from the <a href="https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html">AWS install guide</a> and run it. In a new PowerShell window, check with <code>aws --version</code>.</li>
+      <li><strong>Git (optional):</strong> install from <a href="https://git-scm.com/download/win">git-scm.com</a>, or skip Git and download a ZIP in the next step.</li>
+    </ol>
+  </div>
+
+  <h2>3. Get CD Wallet</h2>
+  <p>With Git:</p>
+  <pre><code>git clone https://github.com/mikemcdevitt/cd-wallet.git
+cd cd-wallet</code></pre>
+  <p>Without Git, open the <a href="https://github.com/mikemcdevitt/cd-wallet">GitHub page</a>, choose <strong>Code</strong>, then <strong>Download ZIP</strong>, unzip it, and <code>cd</code> into the unzipped folder
+    (<span class="mac">for example <code>cd ~/Downloads/cd-wallet-main</code></span><span class="win">for example <code>cd $HOME\Downloads\cd-wallet-main</code></span>).</p>
+  <p>Then install its dependencies. This takes a few minutes the first time:</p>
+  <pre><code>pnpm install</code></pre>
+
+  <h2>4. Sign in to AWS</h2>
+  <p>The command is the same on both systems:</p>
+  <pre><code>aws login --profile cdwallet</code></pre>
+  <p>The CLI asks for a region (press Enter to accept <code>us-east-1</code>, which the cost figures on the <a href="./">home page</a> use; any region works), opens your browser, and asks you to sign in as the IAM user from step 1. Then check:</p>
+  <pre><code>aws sts get-caller-identity --profile cdwallet</code></pre>
+  <p>You should see your account number and the user's name. The sign-in lasts up to 12 hours; if a later command says your credentials are missing or expired, run <code>aws login --profile cdwallet</code> again. On a computer with no browser, or over a remote connection, add <code>--remote</code>.</p>
+
+  <h2>5. Deploy</h2>
+  <pre><code>pnpm cdwallet deploy --profile cdwallet</code></pre>
+  <p>It shows which account and region it will use and what it is about to create, and asks you to confirm. It also asks for an email address for monthly budget alerts; give one, because an alert is the only warning you get about spending. The first deploy also does AWS's one-time CDK setup in your account, so it takes a few minutes longer than later ones.</p>
+  <p>When it finishes, it saves your settings, including the admin token that allows adding and removing music, in a private file under <code>.cdwallet</code> in your home folder. Keep that private.</p>
+
+  <h2>6. Import your music</h2>
+  <p>Point the importer at the folder that holds your music. It reads MP3 and M4A files, skips anything else, and is safe to run again: files already uploaded are skipped.</p>
+  <div class="mac">
+    <p class="os-label">macOS</p>
+    <pre><code>pnpm cdwallet import ~/Music</code></pre>
+  </div>
+  <div class="win">
+    <p class="os-label">Windows</p>
+    <pre><code>pnpm cdwallet import "$HOME\Music"</code></pre>
+  </div>
+  <table>
+    <thead><tr><th>If you use</th><th>The folder is usually</th></tr></thead>
+    <tbody>
+      <tr class="mac"><td>Apple Music on macOS</td><td><code>~/Music/Music/Media/Music</code></td></tr>
+      <tr class="win"><td>iTunes on Windows</td><td><code>$HOME\Music\iTunes\iTunes Media\Music</code></td></tr>
+      <tr><td>Ripped CDs or downloads</td><td>wherever you saved them</td></tr>
+    </tbody>
+  </table>
+  <p>A big library takes a while to upload, depending on your connection. If it stops partway (closed laptop, lost connection, expired sign-in), sign in again if needed and run the same command; it picks up where it left off.</p>
+
+  <h2>7. Pair your phone</h2>
+  <ol>
+    <li>Install the Android app from the <a href="https://github.com/mikemcdevitt/cd-wallet/releases/latest">latest release</a>: download the APK on your phone and open it.</li>
+    <li>Run <code>pnpm cdwallet pair</code>.</li>
+    <li>Scan the QR code in the app. Your library appears and you can start playing.</li>
+  </ol>
+
+  <h2>If something goes wrong</h2>
+  <ul>
+    <li><strong><code>aws</code> or <code>pnpm</code> not found:</strong> close and reopen Terminal or PowerShell. If it still fails, run the installer again.</li>
+    <li><strong><code>aws login</code> is not a command:</strong> your AWS CLI is older than 2.32. Check with <code>aws --version</code> and install the current version.</li>
+    <li><strong>Access denied during <code>aws login</code>:</strong> the IAM user is missing the <code>SignInLocalDevelopmentAccess</code> policy.</li>
+    <li><strong><code>OptInRequired</code> or "service not subscribed":</strong> AWS has not finished activating the account. Complete any "Complete your AWS registration" prompt in the console, check that the account's payment method is valid and not expired, then wait a little and retry.</li>
+    <li><strong>"Several deployments are saved":</strong> add <code>--name &lt;name&gt;</code> to say which one you mean.</li>
+    <li><strong>Credentials expired during a long import:</strong> run <code>aws login --profile cdwallet</code>, then re-run the import.</li>
+  </ul>
+  <p>If you are stuck, <a href="https://github.com/mikemcdevitt/cd-wallet/issues">open an issue</a> and say which system you are on and what the last command printed. Do not paste tokens or the contents of your <code>.cdwallet</code> folder.</p>
+
+  <footer>
+    <a href="./">Home</a> ·
+    <a href="https://github.com/mikemcdevitt/cd-wallet">Source on GitHub</a> ·
+    <a href="https://github.com/mikemcdevitt/cd-wallet/blob/main/SETUP.md">Plain-text version</a> ·
+    <a href="https://github.com/mikemcdevitt/cd-wallet/blob/main/LICENSE">MIT license</a>
+  </footer>
+</main>
+</body>
+</html>
