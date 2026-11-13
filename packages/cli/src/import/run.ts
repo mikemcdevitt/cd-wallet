@@ -3,7 +3,7 @@ import * as path from "node:path";
 import { configDir, loadConfig } from "../config";
 import { resolveDeploymentName } from "../deployment";
 import { CliError } from "../errors";
-import { ApiClient, putBody } from "./api-client";
+import { ApiClient, ApiError, putBody } from "./api-client";
 import { loadCoverJpeg, readTrack, UnsupportedAudioError, type ScannedTrack } from "./metadata";
 import { IMPORT_HELP, parseImportArgs } from "./options";
 import { mapPool } from "./pool";
@@ -107,20 +107,29 @@ export async function runImport(argv: string[], io: ImportIo = {}): Promise<Impo
       const { metadata, filePath } = track;
       try {
         const container = metadata.container ?? "mp3";
-        const upload = await client.createUpload({
-          hash: metadata.hash,
-          sizeBytes: metadata.sizeBytes,
-          ...(container === "mp3" ? {} : { container }),
-          ...(metadata.artHash ? { artHash: metadata.artHash } : {}),
-        });
-        // A server from before M4A support ignores "container" and would file the upload as an MP3.
-        if (container !== "mp3" && upload.container !== container) {
-          throw new CliError("Your deployment is older than this CLI and cannot store M4A files yet. Run `cdwallet deploy` to update it, then import again.");
-        }
-        await putBody(upload.audio.url, upload.audio.headers ?? {}, { kind: "file", path: filePath, size: metadata.sizeBytes });
-        if (upload.art && metadata.artHash) {
-          const cover = await loadCoverJpeg(filePath, metadata.artHash);
-          await putBody(upload.art.url, upload.art.headers ?? {}, { kind: "bytes", data: cover });
+        // Upload links last 15 minutes. If a stall (laptop asleep, Wi-Fi dropped) outlives one, ask for a fresh link and start this file again.
+        for (let attempt = 1; ; attempt++) {
+          try {
+            const upload = await client.createUpload({
+              hash: metadata.hash,
+              sizeBytes: metadata.sizeBytes,
+              ...(container === "mp3" ? {} : { container }),
+              ...(metadata.artHash ? { artHash: metadata.artHash } : {}),
+            });
+            // A server from before M4A support ignores "container" and would file the upload as an MP3.
+            if (container !== "mp3" && upload.container !== container) {
+              throw new CliError("Your deployment is older than this CLI and cannot store M4A files yet. Run `cdwallet deploy` to update it, then import again.");
+            }
+            await putBody(upload.audio.url, upload.audio.headers ?? {}, { kind: "file", path: filePath, size: metadata.sizeBytes });
+            if (upload.art && metadata.artHash) {
+              const cover = await loadCoverJpeg(filePath, metadata.artHash);
+              await putBody(upload.art.url, upload.art.headers ?? {}, { kind: "bytes", data: cover });
+            }
+            break;
+          } catch (err) {
+            if (err instanceof ApiError && err.code === "url_expired" && attempt < 3) continue;
+            throw err;
+          }
         }
         await client.addTrack(metadata);
         result.added++;

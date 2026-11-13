@@ -117,6 +117,9 @@ export class ApiClient {
   }
 }
 
+/** A connection that sends no data for this long is dropped and retried, so a stalled network cannot hang an upload. */
+export const UPLOAD_IDLE_TIMEOUT_MS = 60_000;
+
 export type UploadBody = { kind: "file"; path: string; size: number } | { kind: "bytes"; data: Uint8Array };
 
 /**
@@ -144,10 +147,15 @@ export function putBody(
             const status = res.statusCode ?? 0;
             if (status >= 200 && status < 300) return resolve();
             const detail = Buffer.concat(chunks).toString("utf8").slice(0, 200);
+            // An expired link is not retried here: the same link would be refused again. The caller asks for a fresh one.
+            if (status === 403 && /Request has expired/i.test(detail)) {
+              return reject(new ApiError(status, "url_expired", "the upload link expired before the upload finished", false));
+            }
             reject(new ApiError(status, "upload_failed", `upload was rejected (${status}) ${detail}`.trim(), status >= 500));
           });
         },
       );
+      req.setTimeout(UPLOAD_IDLE_TIMEOUT_MS, () => req.destroy(new Error(`no data moved for ${UPLOAD_IDLE_TIMEOUT_MS / 1000} seconds`)));
       req.on("error", (err) => reject(new ApiError(0, "network", `upload failed (${err.message})`, true)));
       if (body.kind === "file") {
         const stream = createReadStream(body.path);
